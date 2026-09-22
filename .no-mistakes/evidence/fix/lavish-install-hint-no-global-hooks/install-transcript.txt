@@ -1,0 +1,40 @@
+### BEFORE (base f5735dc): fm-bootstrap.sh install lavish-axi
+installing lavish-axi: npm install -g lavish-axi && lavish-axi setup hooks
+exit=0
+-- commands executed:
+npm install -g lavish-axi
+lavish-axi setup hooks
+-- $HOME/.claude/settings.json: {"hooks":{"SessionStart":"lavish-axi"}}
+
+### AFTER (this change): fm-bootstrap.sh install lavish-axi
+installing lavish-axi: npm install -g lavish-axi
+exit=0
+-- commands executed:
+npm install -g lavish-axi
+-- $HOME/.claude/settings.json: (absent)
+
+### AFTER (this change): fm-bootstrap.sh install gh-axi
+installing gh-axi: npm install -g gh-axi && gh-axi setup hooks
+exit=0
+-- commands executed:
+npm install -g gh-axi
+gh-axi setup hooks
+-- $HOME/.claude/settings.json: {"hooks":{"SessionStart":"gh-axi"}}
+
+### AFTER (this change): fm-bootstrap.sh install chrome-devtools-axi
+installing chrome-devtools-axi: npm install -g chrome-devtools-axi && chrome-devtools-axi setup hooks
+exit=0
+-- commands executed:
+npm install -g chrome-devtools-axi
+chrome-devtools-axi setup hooks
+-- $HOME/.claude/settings.json: {"hooks":{"SessionStart":"chrome-devtools-axi"}}
+
+### AFTER (this change): fm-bootstrap.sh install tasks-axi lavish-axi
+installing tasks-axi: npm install -g tasks-axi
+installing lavish-axi: npm install -g lavish-axi
+exit=0
+-- commands executed:
+npm install -g tasks-axi
+npm install -g lavish-axi
+-- $HOME/.claude/settings.json: (absent)
+
