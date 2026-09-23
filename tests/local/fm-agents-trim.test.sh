@@ -27,7 +27,8 @@ test_every_passage_is_found_and_only_listed_lines_go() {
   "$TRIM" --source "$ROOT/AGENTS.md" --output "$out" >/dev/null \
     || fail "the script refused the repository's own AGENTS.md"
   # shellcheck disable=SC2016 # Backticks are literal AGENTS.md Markdown.
-  for gone in '## 14. Relay' 'When Relay-linked work reaches a milestone' '- `fmx-respond` - ' \
+  for gone in '## 14. Relay' 'Relay may require that same live cycle' \
+    'When Relay-linked work reaches a milestone' '- `fmx-respond` - ' \
     'config/x-mode.env ' '  x-watch.check.sh ' '  x-inbox/ ' '  x-context/ ' '  x-outbox/ ' \
     '  public-followup/ ' '  x-poll.error ' '  <id>.grok-turnend-token ' '  <id>.kimi-turnend-token ' \
     '  <id>.gemini-settings.json ' '  <id>.muse-session ' '  <id>.cursor-session ' \

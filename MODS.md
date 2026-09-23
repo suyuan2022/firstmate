@@ -76,7 +76,7 @@ firstmate 从 Treehouse（本机的 worktree 池）分给 worker 的 worktree �
 上游 `AGENTS.md` 是每个 firstmate 会话都要全文加载的监督契约，其中有本机用不到的内容。
 `bin/local/fm-agents-trim.sh` 读上游 `AGENTS.md`，按整行删掉三组内容，生成 `AGENTS.local.md`：
 
-- (a) Relay（公开提及集成）：第 14 节全部、第 8 节里 Relay 相关的那句、第 13 节的 `fmx-respond` 条目、第 2 节目录清单里 7 行 Relay 生成文件。
+- (a) Relay（公开提及集成）：第 14 节全部、第 8 节里两句只讲 Relay 的句子、第 13 节的 `fmx-respond` 条目、第 2 节目录清单里 7 行 Relay 生成文件。
 - (b) 本机不用的运行时和工具：第 2 节里 grok、kimi、gemini、muse、cursor 的任务状态文件行，`.cursor-park-owner`、`config/cmux-socket-password`、`mail.check.sh` 和 `.mail-*` 各行；第 13 节的 `firstmate-orca`、`firstmate-codexapp` 条目。
 - (c) 调度候选数组：第 4 节从「Firstmate alone resolves a matched profile array」到「Load `quota-array-dispatch` ...」的 10 行，以及第 13 节的 `quota-array-dispatch` 条目。
 

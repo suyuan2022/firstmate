@@ -43,6 +43,7 @@ HEADER = (
 PASSAGES = [
     # (a) Relay
     ("a", "## 14.", "section", None),
+    ("a", "## 8.", "line", "Relay may require that same live cycle with no fleet work."),
     ("a", "## 8.", "line", "When Relay-linked work reaches a milestone or terminal state"),
     ("a", "## 13.", "line", "- `fmx-respond` - "),
     ("a", "## 2.", "line", "config/x-mode.env "),
