@@ -265,6 +265,14 @@
       "audience": "agent-runtime"
     },
     {
+      "path": "AGENTS.local.md",
+      "audience": "agent-runtime"
+    },
+    {
+      "path": "AGENTS.override.md",
+      "audience": "agent-runtime"
+    },
+    {
       "path": "CLAUDE.md",
       "audience": "agent-runtime"
     },
@@ -365,7 +373,7 @@
       "audience": "maintainer-verification"
     },
     {
-      "path": "docs/ghost/spawn-setup.md",
+      "path": "docs/local/spawn-setup.md",
       "audience": "operator-current"
     },
     {

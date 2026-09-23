@@ -44,7 +44,7 @@ The default is tight because a hook runs while the spawn still holds the shared 
 `FM_SPAWN_SETUP_TIMEOUT` raises or lowers it in whole seconds; anything that is not a positive integer uses 120.
 Raise it when a hook is legitimately slow - a cold package store, a distant registry - rather than reaching for `FM_SPAWN_SETUP=off`, which skips provisioning altogether and is not an escape hatch for slowness.
 Anything slower still - a full image build, a database container - belongs in the worker's first command instead of the hook, where it does not hold the lock.
-The header of [`bin/ghost/fm-spawn-setup-lib.sh`](../../bin/ghost/fm-spawn-setup-lib.sh) owns the exact mechanics, with regression coverage in [`tests/fm-spawn-setup-hook.test.sh`](../../tests/fm-spawn-setup-hook.test.sh).
+The header of [`bin/local/fm-spawn-setup-lib.sh`](../../bin/local/fm-spawn-setup-lib.sh) owns the exact mechanics, with regression coverage in [`tests/local/fm-spawn-setup-hook.test.sh`](../../tests/local/fm-spawn-setup-hook.test.sh).
 
 ## Environment variables
 

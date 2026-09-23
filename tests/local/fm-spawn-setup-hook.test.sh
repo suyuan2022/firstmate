@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Behavior tests for the per-project spawn setup hook bin/fm-spawn.sh runs
 # before it launches a worker into a freshly allocated worktree
-# (bin/ghost/fm-spawn-setup-lib.sh, a local mod registered in MODS.md).
+# (bin/local/fm-spawn-setup-lib.sh, a local mod registered in MODS.md).
 #
 # Every case drives the REAL fm-spawn against a fake terminal and a real git
 # worktree, so what is proved is the launch outcome an operator sees: whether
@@ -11,7 +11,7 @@
 set -u
 
 # shellcheck source=tests/fixtures.sh
-. "$(dirname "${BASH_SOURCE[0]}")/fixtures.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/../fixtures.sh"
 
 # shellcheck source=/dev/null
 . "$ROOT/bin/fm-config-inherit-lib.sh"

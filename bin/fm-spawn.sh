@@ -556,8 +556,8 @@ fm_backlog_directory_present "$STATE" "state directory" || {
 . "$SCRIPT_DIR/fm-remote-readiness-lib.sh"
 # shellcheck source=bin/fm-timeout-lib.sh
 . "$SCRIPT_DIR/fm-timeout-lib.sh"
-# shellcheck source=bin/ghost/fm-spawn-setup-lib.sh # GHOST: spawn setup hook library (MODS.md)
-. "$SCRIPT_DIR/ghost/fm-spawn-setup-lib.sh"
+# shellcheck source=bin/local/fm-spawn-setup-lib.sh # LOCAL: spawn setup hook library (MODS.md)
+. "$SCRIPT_DIR/local/fm-spawn-setup-lib.sh"
 # Fail closed before any fleet mutation: a no-mistakes gate agent must never spawn
 # a direct report (see bin/fm-gate-refuse-lib.sh).
 fm_refuse_if_gate_agent
@@ -3925,7 +3925,7 @@ elif [ "$KIND" != secondmate ] && [ "$BACKEND" != orca ]; then
 fi
 if [ "$RELAUNCH" -eq 0 ] && [ "$KIND" != secondmate ]; then
   freshen_spawn_worktree_base "$WT" || exit 1
-  run_spawn_setup_hook "$WT" || exit 1 # GHOST: per-project worktree provisioning (bin/ghost/fm-spawn-setup-lib.sh, MODS.md)
+  run_spawn_setup_hook "$WT" || exit 1 # LOCAL: per-project worktree provisioning (bin/local/fm-spawn-setup-lib.sh, MODS.md)
 fi
 
 # Pre-register Claude's workspace trust for the directory this launch starts in,

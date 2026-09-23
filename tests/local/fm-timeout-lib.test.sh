@@ -18,7 +18,7 @@
 set -u
 
 # shellcheck source=tests/lib.sh
-. "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/../lib.sh"
 
 LIB="$ROOT/bin/fm-timeout-lib.sh"
 TMP_ROOT=$(fm_test_tmproot fm-timeout-lib)

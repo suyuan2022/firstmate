@@ -3,7 +3,7 @@
 #
 # A local mod, not part of upstream Firstmate: MODS.md registers the two
 # fm-spawn.sh hook lines that load this library and call it, and
-# docs/ghost/spawn-setup.md is its operator guide.
+# docs/local/spawn-setup.md is its operator guide.
 #
 # Sourced by bin/fm-spawn.sh, never executed. run_spawn_setup_hook reads the
 # spawn's CONFIG, PROJ_ABS, ID, KIND, and BACKEND globals at call time and
@@ -32,7 +32,7 @@
 #   unlanded work. No task record, backlog transition, or worker is created, but
 #   a refusal can leave the already-created task window, the kept log, and any
 #   unignored path the hook wrote in the pooled worktree;
-#   docs/ghost/spawn-setup.md lists what to clear before retrying the same task
+#   docs/local/spawn-setup.md lists what to clear before retrying the same task
 #   id.
 #   Skipped for relaunches, secondmates, and the orca backend, which provisions
 #   its worktrees from its own repository hook. FM_SPAWN_SETUP=off skips a
@@ -67,7 +67,7 @@
 # hook log under the temp directory, and - for the dirty-tree refusal below -
 # whatever unignored path the hook wrote, which freshen_spawn_worktree_base then
 # refuses that pooled slot over until a human clears it.
-# docs/ghost/spawn-setup.md lists all three for the operator.
+# docs/local/spawn-setup.md lists all three for the operator.
 #
 # A hook may write only paths the worktree already ignores. That is asserted
 # rather than trusted, because bin/fm-teardown.sh reads any other untracked file

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tests/fm-branch-prompt-include.test.sh - the home-local supervision-branch
-# prompt additions (bin/ghost/fm-branch-prompt-include.sh, a local mod
+# prompt additions (bin/local/fm-branch-prompt-include.sh, a local mod
 # registered in MODS.md).
 #
 # Every case runs the real bin/fm-branch-prompt.sh the Pi branch extension
@@ -10,7 +10,7 @@
 set -u
 
 # shellcheck source=tests/lib.sh
-. "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/../lib.sh"
 
 TMP_ROOT=$(fm_test_tmproot fm-branch-prompt-include)
 
