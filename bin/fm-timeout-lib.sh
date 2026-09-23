@@ -20,6 +20,7 @@
 #       reproduced by the perl and bash fallbacks). A command killed by a signal
 #       reports 128 + the signal, so callers that refuse on failure cannot read
 #       a killed command as success.
+# LOCAL: the override and signal-status sentences above are local (MODS.md)
 #
 # A non-positive bound is not a bound: `timeout 0` and the perl fallback's
 # `alarm 0` both disable the deadline, so callers must reject 0 before calling.
@@ -34,6 +35,7 @@
 set -u
 
 fm_timeout_mechanism() {
+  # LOCAL: the override accepts every mechanism, not only bash (MODS.md)
   case "${FM_TIMEOUT_MECHANISM_OVERRIDE:-}" in
     bash)
       printf 'bash\n'
@@ -148,6 +150,7 @@ fm_run_timed() {  # <seconds> <command...>
     timeout) fm_run_external_timeout timeout "$seconds" "$@" ;;
     gtimeout) fm_run_external_timeout gtimeout "$seconds" "$@" ;;
     perl)
+      # LOCAL: a signal-killed command exits 128 + signal, not 0 (MODS.md)
       perl -e 'my $t = shift; my $pid = fork; die "fork failed" unless defined $pid; if (!$pid) { setpgrp(0, 0); exec @ARGV } local $SIG{ALRM} = sub { kill "TERM", -$pid; select undef, undef, undef, 0.2; kill "KILL", -$pid; exit 124 }; alarm $t; waitpid $pid, 0; my $st = $?; exit($st & 127 ? 128 + ($st & 127) : $st >> 8)' \
         "$seconds" "$@"
       ;;

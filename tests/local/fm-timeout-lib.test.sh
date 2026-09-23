@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # tests/fm-timeout-lib.test.sh - the exit-status contract of the shared bounded
-# runner (bin/fm-timeout-lib.sh).
+# runner (bin/fm-timeout-lib.sh), including its local mods registered in
+# MODS.md.
 #
 # Every caller in bin/ decides whether a bounded command succeeded by reading
 # fm_run_timed's status, and bin/fm-spawn.sh's setup hook refuses a spawn on
@@ -17,7 +18,7 @@
 set -u
 
 # shellcheck source=tests/lib.sh
-. "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/../lib.sh"
 
 LIB="$ROOT/bin/fm-timeout-lib.sh"
 TMP_ROOT=$(fm_test_tmproot fm-timeout-lib)

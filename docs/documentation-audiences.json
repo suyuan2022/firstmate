@@ -265,6 +265,14 @@
       "audience": "agent-runtime"
     },
     {
+      "path": "AGENTS.local.md",
+      "audience": "agent-runtime"
+    },
+    {
+      "path": "AGENTS.override.md",
+      "audience": "agent-runtime"
+    },
+    {
       "path": "CLAUDE.md",
       "audience": "agent-runtime"
     },
@@ -275,6 +283,10 @@
     {
       "path": "GROK_BOT.md",
       "audience": "public-product"
+    },
+    {
+      "path": "MODS.md",
+      "audience": "maintainer-architecture"
     },
     {
       "path": "README.md",
@@ -359,6 +371,10 @@
     {
       "path": "docs/fm-test-portable-shards.md",
       "audience": "maintainer-verification"
+    },
+    {
+      "path": "docs/local/spawn-setup.md",
+      "audience": "operator-current"
     },
     {
       "path": "docs/gitlab-merge-watch.md",

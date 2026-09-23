@@ -138,3 +138,4 @@ cat <<'PROMPT'
 
 PROMPT
 cat "$FM_TRACKED_ROOT/.agents/skills/ask-user-authority/SKILL.md"
+"$SCRIPT_DIR/local/fm-branch-prompt-include.sh" # LOCAL: append home-local config/branch-prompt-include.md (MODS.md)
