@@ -2,8 +2,8 @@
 # fm-agents-trim.sh - generate AGENTS.local.md, the trimmed supervisor contract
 # this fork loads instead of the upstream AGENTS.md.
 #
-# A local mod, not part of upstream Firstmate: MODS.md registers it, together
-# with the CLAUDE.md and AGENTS.override.md pointers that load its output.
+# A local mod, not part of upstream Firstmate: MODS.md registers it and says how
+# each runtime loads its output, including the AGENTS.override.md symlink.
 # Re-run it after every upstream merge, then commit AGENTS.local.md.
 #
 # It reads AGENTS.md, deletes the whole lines named by the PASSAGES list below,

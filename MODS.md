@@ -4,7 +4,7 @@
 定制按「堂前燕」方式组织：上游文件里只留一行钩子，shell 里在行尾或行上标 `# LOCAL: <说明>`，Markdown 里标 `<!-- LOCAL: <说明> -->`；定制内容放在只属于本 fork 的独立文件里（`bin/local/`、`docs/local/`、`tests/local/`）。
 拉上游时，冲突只可能落在下面「钩子」和「清单登记」两节列出的几行上。
 
-行号会随上游改动漂移，以 `grep -rnE '# LOCAL:|<!-- LOCAL:' bin CLAUDE.md` 的结果为准；它列出的行应与「钩子」一节逐条对应。
+行号会随上游改动漂移，以 `grep -rn '# LOCAL:' bin` 的结果为准；它列出的行应与「钩子」一节逐条对应。
 
 **每次合入上游之后，都要重新运行 `bin/local/fm-agents-trim.sh` 并提交生成的 `AGENTS.local.md`**，完整步骤见文末「拉上游之后」。
 
@@ -18,7 +18,6 @@
 | `bin/fm-timeout-lib.sh:38` | `fm_timeout_mechanism` 的覆盖变量除 `bash` 外也接受 `timeout`、`gtimeout`、`perl`，本机没有该工具时回落到正常探测 | 无，改动留在上游文件里 | 同上 |
 | `bin/fm-timeout-lib.sh:153` | perl 兜底机制把被信号杀死的命令报成 128 + 信号，而不是 0 | 无，改动留在上游文件里 | 同上 |
 | `bin/fm-branch-prompt.sh:141` | 在监督分支系统提示末尾追加本机 `config/branch-prompt-include.md` 的内容 | `bin/local/fm-branch-prompt-include.sh` | 见下文「监督分支提示追加」 |
-| `CLAUDE.md:1-2` | 第 1 行是标记，第 2 行把 Claude 的导入从 `@AGENTS.md` 改成 `@AGENTS.local.md` | `AGENTS.local.md` | 见下文「精简版 AGENTS」 |
 
 ## 清单登记
 
@@ -87,21 +86,20 @@ no-mistakes 相关内容一律保留。
 
 各运行时这样加载精简版：
 
-- Claude Code 读 `CLAUDE.md`，它导入 `@AGENTS.local.md`。
+- Claude Code：仓库里的 `CLAUDE.md` 保持上游原样，因为 CI 的「Repo invariants」检查要求它是标准的 `@AGENTS.md` 指针。
+  本机另用两处不提交的配置让 Claude 改读精简版：`CLAUDE.local.md`，内容只有一行 `@AGENTS.local.md`；`.claude/settings.local.json` 里的 `"claudeMdExcludes": ["/Users/suyuan/firstmate/CLAUDE.md"]`，让 Claude 不再加载完整版。
+  两个文件都列在 `.git/info/exclude` 里，只在 main 上已有 `AGENTS.local.md` 之后（即本改动合入之后）才添加，否则 Claude 两份契约都读不到。
 - Codex 和 Pi 在同一目录下优先读 `AGENTS.override.md`，读到的就是 `AGENTS.local.md` 的全文；它们原样读取、不展开 `@` 导入，所以这里用符号链接而不是一行指针。
 - 其他运行时（opencode 等）仍读完整的 `AGENTS.md`。
 
-两个本机相关的注意点：
-
-- 本机全局 gitignore（`~/.config/git/ignore`）有 `*.local.md` 规则，`AGENTS.local.md` 是用 `git add -f` 纳入跟踪的；已跟踪的文件不受忽略规则影响，重新生成后照常 `git add` 即可。
-- `bin/fm-ensure-agents-md.sh` 在本仓库会报 conflict，因为 `CLAUDE.md` 不再是标准的 `@AGENTS.md` 指针；这是预期结果，不要照它的提示把 `CLAUDE.md` 改回去。
+本机全局 gitignore（`~/.config/git/ignore`）有 `*.local.md` 规则，`AGENTS.local.md` 是用 `git add -f` 纳入跟踪的；已跟踪的文件不受忽略规则影响，重新生成后照常 `git add` 即可。
 
 不进上游的原因：删掉哪些内容取决于本机用哪些功能，上游契约要覆盖所有用户。
 
 ## 拉上游之后
 
-1. 解决冲突时保留带 `# LOCAL:` 和 `<!-- LOCAL:` 标记的行；`bin/fm-spawn.sh` 里调用行必须仍紧跟在 `freshen_spawn_worktree_base "$WT" || exit 1` 之后，原因见 `bin/local/fm-spawn-setup-lib.sh` 里 `run_spawn_setup_hook` 上方的注释。
+1. 解决冲突时保留带 `# LOCAL:` 标记的行；`bin/fm-spawn.sh` 里调用行必须仍紧跟在 `freshen_spawn_worktree_base "$WT" || exit 1` 之后，原因见 `bin/local/fm-spawn-setup-lib.sh` 里 `run_spawn_setup_hook` 上方的注释。
 2. 运行 `bin/local/fm-agents-trim.sh`；成功就提交生成的 `AGENTS.local.md`，报错就按上一节更新 `PASSAGES` 后重跑。
-3. 运行 `grep -rnE '# LOCAL:|<!-- LOCAL:' bin CLAUDE.md`，核对结果与「钩子」一节一致，行号变了就更新本文件。
+3. 运行 `grep -rn '# LOCAL:' bin`，核对结果与「钩子」一节一致，行号变了就更新本文件。
 4. 运行 `bin/fm-lint.sh`，再运行 `bin/fm-lint.sh bin/local/*.sh tests/local/*.sh`：默认的 lint 范围是 `bin/*.sh`、`bin/backends/*.sh` 和 `tests/*.sh`，不包括 `bin/local/` 和 `tests/local/`。
 5. 运行 `bin/fm-test-run.sh tests/fm-local-mods.test.sh tests/fm-branch-supervision.test.sh tests/fm-documentation-audiences.test.sh`。
