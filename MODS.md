@@ -42,8 +42,8 @@
 
 ### spawn setup 钩子
 
-firstmate 从 Treehouse 池分给 worker 的 worktree 是裸检出：没装依赖、没有本地 env 文件、没分端口。
-这个钩子让本机为每个项目放一个可执行文件 `config/spawn-setup/<项目目录名>`，ship 和 scout 启动前先在 worktree 里跑它。
+firstmate 从 Treehouse（本机的 worktree 池）分给 worker 的 worktree 是裸检出：没装依赖、没有本地 env 文件、没分端口。
+这个钩子让本机为每个项目放一个可执行文件 `config/spawn-setup/<项目目录名>`，ship（交付改动的任务）和 scout（只出调查报告的任务）的 worker 启动前，先在 worktree 里跑它。
 用法、拒绝条件和重试前要清理的东西见 [`docs/ghost/spawn-setup.md`](docs/ghost/spawn-setup.md)。
 不进上游的原因：它服务的是本机池里项目（如 her-web）的准备步骤，本 fork 决定只在本地维护。
 
@@ -55,7 +55,7 @@ firstmate 从 Treehouse 池分给 worker 的 worktree 是裸检出：没装依�
 
 ### 监督分支提示追加
 
-`bin/fm-branch-prompt.sh` 生成 Pi 监督分支的系统提示。
+`bin/fm-branch-prompt.sh` 生成 Pi 监督分支的系统提示；监督分支是 firstmate 在 Pi 运行时里专门处理 worker 事件的第二个对话，它写的结果摘要会转给主对话。
 钩子仿照上游 `config/brief-include.md` 的形状：本机 `config/branch-prompt-include.md` 不存在或为空时什么都不加；存在时把内容原样放在提示末尾的 `# Home prompt additions` 段落里，前面所有段落优先于它；路径存在但不是可读的普通文件时拒绝生成提示。
 「摘要用简体中文」这条要求写在本机的 `config/branch-prompt-include.md` 里，这个文件不提交。
 只读取 `FM_CONFIG_OVERRIDE` 或 `FM_HOME/config` 指定的目录，两者都没设时什么都不加；Pi 扩展每次都显式传这两个变量。
