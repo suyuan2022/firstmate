@@ -613,6 +613,8 @@ AGENTS_START_HASH=
 if [ "$REEMIT" -eq 0 ] && [ "$SESSION_SOURCE" = startup ]; then
   AGENTS_START_HASH=$(hash_file_sha256 "$FM_ROOT/AGENTS.md" 2>/dev/null || true)
 fi
+# shellcheck source=bin/local/fm-agents-refresh-lib.sh # LOCAL: Pi instruction refresh follows AGENTS.override.md (MODS.md)
+. "$SCRIPT_DIR/local/fm-agents-refresh-lib.sh"
 
 if [ "$REEMIT" -eq 1 ]; then
   section "SESSION START (CONTEXT RE-EMIT) - $FM_HOME"
