@@ -1413,7 +1413,7 @@ ${context.command}
       const item = pendingMirror[0];
       if (!(await actingAsOwner(expectedGeneration))) throw new Error("supervision session no longer owns the fleet lock");
       await session.sendCustomMessage(
-        { customType: "fm-main-mirror", content: `[${item.tag}] ${item.text}`, display: false },
+        { customType: "fm-main-mirror", content: (globalThis as { fmLocalMirrorContent?: (tag: string, text: string) => string }).fmLocalMirrorContent?.(item.tag, item.text) ?? `[${item.tag}] ${item.text}`, display: false }, // LOCAL: home-local mirror rewrite (.pi/extensions/local-mirror-skill-collapse.ts, MODS.md)
         {},
       );
       if (!(await actingAsOwner(expectedGeneration))) throw new Error("supervision session was replaced during mirror delivery");
