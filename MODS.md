@@ -14,6 +14,7 @@
 | --- | --- | --- | --- |
 | `bin/fm-spawn.sh:559-560` | 载入 spawn setup 库；559 行是带标记的 `# shellcheck source=` 指令，560 行是 `.` 载入语句 | `bin/local/fm-spawn-setup-lib.sh` | 见下文「spawn setup 钩子」 |
 | `bin/fm-spawn.sh:3928` | 在 `freshen_spawn_worktree_base` 之后调用 `run_spawn_setup_hook`，给新分到的 worktree 做项目准备 | `bin/local/fm-spawn-setup-lib.sh` | 同上 |
+| `bin/fm-spawn.sh:4734` | 在上游的启动前 export（`GOTMPDIR`、`LAVISH_AXI_HOST` 等）之后调用 `spawn_local_pane_exports`，把本 home 要求的环境变量送进 agent 的 pane | `bin/local/fm-spawn-setup-lib.sh` | 见下文「浏览器改用 Chrome for Testing」 |
 | `bin/fm-timeout-lib.sh:23` | 标出头部说明里两段本地句子：`FM_TIMEOUT_MECHANISM_OVERRIDE` 可强制四种机制，以及被信号杀死的命令返回 128 + 信号 | 无，改动留在上游文件里 | 见下文「超时修复」 |
 | `bin/fm-timeout-lib.sh:38` | `fm_timeout_mechanism` 的覆盖变量除 `bash` 外也接受 `timeout`、`gtimeout`、`perl`，本机没有该工具时回落到正常探测 | 无，改动留在上游文件里 | 同上 |
 | `bin/fm-timeout-lib.sh:153` | perl 兜底机制把被信号杀死的命令报成 128 + 信号，而不是 0 | 无，改动留在上游文件里 | 同上 |
@@ -36,14 +37,18 @@
 - `MODS.md` - 本文件。
 - `AGENTS.local.md` - 精简版监督契约，由 `bin/local/fm-agents-trim.sh` 生成，第 1 行是 `<!-- LOCAL: -->` 标记，不手改。
 - `AGENTS.override.md` - 指向 `AGENTS.local.md` 的符号链接，给 Codex 和 Pi 读。
-- `bin/local/fm-spawn-setup-lib.sh` - spawn setup 钩子的全部实现，头部注释是它的完整契约。
+- `bin/local/fm-spawn-setup-lib.sh` - spawn setup 钩子和 pane 环境变量钩子的全部实现，头部注释是它的完整契约。
 - `bin/local/fm-branch-prompt-include.sh` - 读取并输出 `config/branch-prompt-include.md` 的追加段落。
 - `bin/local/fm-agents-trim.sh` - 从 `AGENTS.md` 生成 `AGENTS.local.md`，要删的段落清单写在脚本的 `PASSAGES` 里。
 - `docs/local/spawn-setup.md` - spawn setup 钩子的使用说明和两个环境变量。
+- `bin/local/chrome-devtools-mcp-cft.mjs` - 让 chrome-devtools-axi 启动 Chrome for Testing 的转接脚本，见下文「浏览器改用 Chrome for Testing」。
+- `.pi/extensions/local-chrome-devtools-cft.ts` - Pi 扩展，给手动启动的 Pi 大副进程设上同一个变量，见同一节。Pi 会自动加载 `.pi/extensions/` 下的文件，所以它不需要钩子。
 - `tests/fm-local-mods.test.sh` - 测试入口 `bin/fm-test-run.sh` 只发现 `tests/*.test.sh`，这个文件依次运行 `tests/local/` 下的全部测试，让它们进入 `--all`、CI 分片和覆盖检查。
 - `tests/local/fm-spawn-setup-hook.test.sh` - spawn setup 钩子的行为测试，驱动真实的 `bin/fm-spawn.sh`。
 - `tests/local/fm-timeout-lib.test.sh` - 超时修复的行为测试，四种机制逐一强制运行。
 - `tests/local/fm-branch-prompt-include.test.sh` - 监督分支提示追加的行为测试，覆盖有文件、无文件、空文件和路径不是普通文件四种情况。
+- `tests/local/fm-chrome-devtools-mcp-cft.test.sh` - Chrome for Testing 转接脚本的行为测试：启动模式补上 `--executablePath`、候选优先级、attach 与显式指定时原样放行、找不到 Chrome for Testing 或真正的 mcp 时拒绝；本机装了 axi 时还检查它仍读取 `CHROME_DEVTOOLS_AXI_MCP_PATH`；Pi 扩展只在有开关、有脚本、变量未设时才设置。
+- `tests/local/fm-spawn-pane-exports.test.sh` - pane 环境变量钩子的行为测试，驱动真实的 `bin/fm-spawn.sh`：没开关时什么都不发，有开关时在 `GOTMPDIR` 之后发出，工人和二副启动后都带着这个变量。
 - `tests/local/fm-agents-trim.test.sh` - 精简脚本的行为测试：段落全部找到、缺段落时报错、`--check` 发现过期，并检查仓库里提交的 `AGENTS.local.md` 与当前 `AGENTS.md` 一致。
 
 ## 各项定制
@@ -69,6 +74,16 @@ firstmate 从 Treehouse（本机的 worktree 池）分给 worker 的 worktree �
 只读取 `FM_CONFIG_OVERRIDE` 或 `FM_HOME/config` 指定的目录，两者都没设时什么都不加；Pi 扩展每次都显式传这两个变量。
 改了配置文件后，要等监督分支下次重建（新开主会话，或切换监督分支的模型或推理强度）才生效。
 不进上游的原因：语言偏好只属于本机，上游的提示对所有用户保持逐字节稳定。
+
+### 浏览器改用 Chrome for Testing
+
+chrome-devtools-axi 默认用 `/Applications/Google Chrome.app` 启动无头 Chrome。macOS 把这个没窗口的实例当成正在运行的 Chrome，用户点 Dock 图标只会激活它，日常 Chrome 看起来就打不开。
+axi 没开放 `--executablePath`，但 `CHROME_DEVTOOLS_AXI_MCP_PATH` 可以指向任意脚本，axi 用 `node <脚本> <参数>` 运行它。`bin/local/chrome-devtools-mcp-cft.mjs` 就是这个脚本：补上 `--executablePath=<Chrome for Testing>` 后交给真正的 chrome-devtools-mcp；attach 模式或已显式指定浏览器时原样放行；找不到 Chrome for Testing 时报错退出，不回落到日常 Chrome。
+启用方式是本机开关 `config/chrome-devtools-cft`（空文件，gitignored，不继承，每个 home 各放一个）。有了它：
+- `bin/fm-spawn.sh` 的钩子行在启动每个工人、侦察和二副之前，往 pane 里 `export CHROME_DEVTOOLS_AXI_MCP_PATH=<本 checkout>/bin/local/chrome-devtools-mcp-cft.mjs`；
+- `.pi/extensions/local-chrome-devtools-cft.ts` 在 Pi 大副启动时给自己的进程设上同一个变量，大副自己用 axi 时也走 Chrome for Testing。
+只影响 firstmate 启动的 agent，不改 shell 配置。环境里已经设了这个变量时以已有的为准。开了 `config/launch-env-allowlist` 的 home 要把 `CHROME_DEVTOOLS_AXI_MCP_PATH` 加进白名单。Claude 大副不在覆盖范围内。已经在跑的 axi bridge 要 `chrome-devtools-axi stop` 后才换。
+不进上游的原因：Chrome for Testing 的位置（agent-browser 或 Playwright 的下载目录）只属于本机。
 
 ### 精简版 AGENTS
 
@@ -98,7 +113,7 @@ no-mistakes 相关内容一律保留。
 
 ## 拉上游之后
 
-1. 解决冲突时保留带 `# LOCAL:` 标记的行；`bin/fm-spawn.sh` 里调用行必须仍紧跟在 `freshen_spawn_worktree_base "$WT" || exit 1` 之后，原因见 `bin/local/fm-spawn-setup-lib.sh` 里 `run_spawn_setup_hook` 上方的注释。
+1. 解决冲突时保留带 `# LOCAL:` 标记的行；`bin/fm-spawn.sh` 里 `run_spawn_setup_hook` 调用行必须仍紧跟在 `freshen_spawn_worktree_base "$WT" || exit 1` 之后，原因见 `bin/local/fm-spawn-setup-lib.sh` 里 `run_spawn_setup_hook` 上方的注释；`spawn_local_pane_exports` 调用行必须仍在上游启动前 export 那一段里、发送启动命令之前。
 2. 运行 `bin/local/fm-agents-trim.sh`；成功就提交生成的 `AGENTS.local.md`，报错就按上一节更新 `PASSAGES` 后重跑。
 3. 运行 `grep -rn '# LOCAL:' bin`，核对结果与「钩子」一节一致，行号变了就更新本文件。
 4. 运行 `bin/fm-lint.sh`，再运行 `bin/fm-lint.sh bin/local/*.sh tests/local/*.sh`：默认的 lint 范围是 `bin/*.sh`、`bin/backends/*.sh` 和 `tests/*.sh`，不包括 `bin/local/` 和 `tests/local/`。
