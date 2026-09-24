@@ -40,10 +40,12 @@
 - `bin/local/fm-branch-prompt-include.sh` - 读取并输出 `config/branch-prompt-include.md` 的追加段落。
 - `bin/local/fm-agents-trim.sh` - 从 `AGENTS.md` 生成 `AGENTS.local.md`，要删的段落清单写在脚本的 `PASSAGES` 里。
 - `docs/local/spawn-setup.md` - spawn setup 钩子的使用说明和两个环境变量。
+- `bin/local/chrome-devtools-mcp-cft.mjs` - 让 chrome-devtools-axi 启动 Chrome for Testing 的转接脚本，见下文「浏览器改用 Chrome for Testing」。
 - `tests/fm-local-mods.test.sh` - 测试入口 `bin/fm-test-run.sh` 只发现 `tests/*.test.sh`，这个文件依次运行 `tests/local/` 下的全部测试，让它们进入 `--all`、CI 分片和覆盖检查。
 - `tests/local/fm-spawn-setup-hook.test.sh` - spawn setup 钩子的行为测试，驱动真实的 `bin/fm-spawn.sh`。
 - `tests/local/fm-timeout-lib.test.sh` - 超时修复的行为测试，四种机制逐一强制运行。
 - `tests/local/fm-branch-prompt-include.test.sh` - 监督分支提示追加的行为测试，覆盖有文件、无文件、空文件和路径不是普通文件四种情况。
+- `tests/local/fm-chrome-devtools-mcp-cft.test.sh` - Chrome for Testing 转接脚本的行为测试：启动模式补上 `--executablePath`、候选优先级、attach 与显式指定时原样放行、找不到 Chrome for Testing 或真正的 mcp 时拒绝；本机装了 axi 时还检查它仍读取 `CHROME_DEVTOOLS_AXI_MCP_PATH`。
 - `tests/local/fm-agents-trim.test.sh` - 精简脚本的行为测试：段落全部找到、缺段落时报错、`--check` 发现过期，并检查仓库里提交的 `AGENTS.local.md` 与当前 `AGENTS.md` 一致。
 
 ## 各项定制
@@ -69,6 +71,13 @@ firstmate 从 Treehouse（本机的 worktree 池）分给 worker 的 worktree �
 只读取 `FM_CONFIG_OVERRIDE` 或 `FM_HOME/config` 指定的目录，两者都没设时什么都不加；Pi 扩展每次都显式传这两个变量。
 改了配置文件后，要等监督分支下次重建（新开主会话，或切换监督分支的模型或推理强度）才生效。
 不进上游的原因：语言偏好只属于本机，上游的提示对所有用户保持逐字节稳定。
+
+### 浏览器改用 Chrome for Testing
+
+chrome-devtools-axi 默认用 `/Applications/Google Chrome.app` 启动无头 Chrome。macOS 把这个没窗口的实例当成正在运行的 Chrome，用户点 Dock 图标只会激活它，日常 Chrome 看起来就打不开。
+axi 没开放 `--executablePath`，但 `CHROME_DEVTOOLS_AXI_MCP_PATH` 可以指向任意脚本，axi 用 `node <脚本> <参数>` 运行它。`bin/local/chrome-devtools-mcp-cft.mjs` 就是这个脚本：补上 `--executablePath=<Chrome for Testing>` 后交给真正的 chrome-devtools-mcp；attach 模式或已显式指定浏览器时原样放行；找不到 Chrome for Testing 时报错退出，不回落到日常 Chrome。
+启用方式是在 `~/.zshenv` 里 `export CHROME_DEVTOOLS_AXI_MCP_PATH="$HOME/firstmate/bin/local/chrome-devtools-mcp-cft.mjs"`，只对之后新开的 shell 和 agent 生效；已经在跑的 axi bridge 要 `chrome-devtools-axi stop` 后才换。
+不进上游的原因：Chrome for Testing 的位置（agent-browser 或 Playwright 的下载目录）只属于本机。
 
 ### 精简版 AGENTS
 
