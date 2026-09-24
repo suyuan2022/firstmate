@@ -224,6 +224,8 @@ fi
 # markers, while bin/fm-wake-lib.sh owns their wake-facing routing, the legacy
 # turn-ended signature, annotation staleness checks, and guarded bookkeeping writes.
 
+# shellcheck source=bin/local/fm-watch-env-lib.sh # LOCAL: home-local watcher timing from config/watch.env (MODS.md)
+. "$SCRIPT_DIR/local/fm-watch-env-lib.sh"
 POLL=${FM_POLL:-15}                   # seconds between cycles
 # The liveness beacon is touched once per cycle, immediately before the
 # terminal wait below (event_wait_or_sleep) as well as at the top of the next
