@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
-# fm-spawn-setup-lib.sh - the single owner of home-local spawn setup hooks.
+# fm-spawn-setup-lib.sh - the single owner of home-local spawn setup hooks and
+# home-local pane exports.
 #
-# A local mod, not part of upstream Firstmate: MODS.md registers the two
+# A local mod, not part of upstream Firstmate: MODS.md registers the three
 # fm-spawn.sh hook lines that load this library and call it, and
 # docs/local/spawn-setup.md is its operator guide.
+#
+# Home-local pane exports (spawn_local_pane_exports, below): environment a
+# home wants every agent it launches to start with, sent into the pane shell
+# through the same pre-launch channel that ships GOTMPDIR.
 #
 # Sourced by bin/fm-spawn.sh, never executed. run_spawn_setup_hook reads the
 # spawn's CONFIG, PROJ_ABS, ID, KIND, and BACKEND globals at call time and
@@ -181,4 +186,32 @@ spawn_setup_hook_log_tail() { # <log>
   else
     echo "the hook produced no output; its empty log is kept at $log" >&2
   fi
+}
+
+# Home-local pane exports. Called by bin/fm-spawn.sh right after its own
+# pre-launch exports (GOTMPDIR, COMPACT_ADVISER_DISABLE, LAVISH_AXI_HOST), for
+# every kind (ship, scout, secondmate) and for relaunches, so the agent and
+# every command it runs inherit the values. Reads the spawn's CONFIG and
+# SCRIPT_DIR globals and fm-spawn.sh's spawn_send_text_line and shell_quote.
+#
+# Chrome for Testing for chrome-devtools-axi (config/chrome-devtools-cft):
+#   An optional home-local, gitignored presence flag. When present, the pane
+#   gets CHROME_DEVTOOLS_AXI_MCP_PATH pointing at this checkout's
+#   bin/local/chrome-devtools-mcp-cft.mjs, so every browser the agent opens
+#   through chrome-devtools-axi is Chrome for Testing rather than the
+#   captain's everyday Chrome (MODS.md "Browser uses Chrome for Testing").
+#   Absent flag: nothing is sent. A flag whose shim is missing warns and sends
+#   nothing, so the launch never points at a file that does not exist. Not
+#   inherited by secondmate homes; each home sets its own flag. A home that
+#   enables config/launch-env-allowlist must also list
+#   CHROME_DEVTOOLS_AXI_MCP_PATH there, or the cleared launch drops it.
+spawn_local_pane_exports() { # <pane-target>
+  local target=$1 shim
+  [ -f "$CONFIG/chrome-devtools-cft" ] || return 0
+  shim="$SCRIPT_DIR/local/chrome-devtools-mcp-cft.mjs"
+  if [ ! -f "$shim" ]; then
+    echo "warning: config/chrome-devtools-cft is set but $shim is missing; this agent keeps chrome-devtools-axi's default browser" >&2
+    return 0
+  fi
+  spawn_send_text_line "$target" "export CHROME_DEVTOOLS_AXI_MCP_PATH=$(shell_quote "$shim")"
 }

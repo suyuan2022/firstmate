@@ -117,11 +117,55 @@ test_installed_axi_still_honours_mcp_path() {
   pass "the bootstrapped chrome-devtools-axi still reads CHROME_DEVTOOLS_AXI_MCP_PATH"
 }
 
+# The primary's own Pi session gets the variable from
+# .pi/extensions/local-chrome-devtools-cft.ts. Each case lays out a scratch
+# checkout (extension, shim, optional flag) and loads the real extension file
+# the way Pi does - import, then call the default export - in a fresh node
+# process, printing what the bash tool environment would carry.
+EXT="$ROOT/.pi/extensions/local-chrome-devtools-cft.ts"
+
+make_checkout() { # <name> <flag:yes|no> <shim:yes|no>
+  local d="$TMP_ROOT/checkout-$1"
+  mkdir -p "$d/.pi/extensions" "$d/bin/local" "$d/config"
+  cp "$EXT" "$d/.pi/extensions/local-chrome-devtools-cft.ts"
+  [ "$3" = yes ] && : > "$d/bin/local/chrome-devtools-mcp-cft.mjs"
+  [ "$2" = yes ] && : > "$d/config/chrome-devtools-cft"
+  printf '%s\n' "$d"
+}
+
+load_extension() { # <checkout> [VAR=value...]
+  local d=$1; shift
+  env -u CHROME_DEVTOOLS_AXI_MCP_PATH "$@" node --no-warnings --input-type=module -e "
+const m = await import('file://$d/.pi/extensions/local-chrome-devtools-cft.ts');
+m.default({});
+console.log(process.env.CHROME_DEVTOOLS_AXI_MCP_PATH ?? 'unset');
+"
+}
+
+test_pi_extension_sets_path_only_when_flagged() {
+  local d out
+  d=$(make_checkout on yes yes)
+  out=$(load_extension "$d") || fail "extension failed to load with the flag set"
+  assert_equals "$d/bin/local/chrome-devtools-mcp-cft.mjs" "$out" \
+    "with the flag set the extension must point axi at this checkout's shim"
+  d=$(make_checkout off no yes)
+  out=$(load_extension "$d") || fail "extension failed to load without the flag"
+  assert_equals unset "$out" "without config/chrome-devtools-cft the extension must change nothing"
+  d=$(make_checkout noshim yes no)
+  out=$(load_extension "$d") || fail "extension failed to load without the shim"
+  assert_equals unset "$out" "a flag whose shim is missing must not point axi at a missing file"
+  d=$(make_checkout preset yes yes)
+  out=$(load_extension "$d" CHROME_DEVTOOLS_AXI_MCP_PATH=/already/set.mjs) || fail "extension failed with a preset value"
+  assert_equals /already/set.mjs "$out" "a value already in the environment must win"
+  pass "the Pi extension sets CHROME_DEVTOOLS_AXI_MCP_PATH only for a flagged home with a shim and no preset value"
+}
+
 test_launch_mode_appends_agent_browser_cft
 test_override_and_newest_playwright_are_used
 test_attach_and_explicit_modes_pass_through
 test_missing_cft_refuses_instead_of_everyday_chrome
 test_missing_real_mcp_refuses
 test_installed_axi_still_honours_mcp_path
+test_pi_extension_sets_path_only_when_flagged
 
 echo "# all fm-chrome-devtools-mcp-cft tests passed"
