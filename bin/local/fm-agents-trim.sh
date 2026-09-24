@@ -68,6 +68,45 @@ PASSAGES = [
     # (c) Dispatch candidate arrays
     ("c", "## 4.", "range", ("Firstmate alone resolves a matched profile array", "Load `quota-array-dispatch` ", 10)),
     ("c", "## 13.", "line", "- `quota-array-dispatch` - "),
+    # (d) Optional config switches this home does not use. Each works from its
+    # config/ file alone; docs/configuration.md keeps the full description.
+    # Using one again: delete its line here and re-run.
+    ("d", "## 2.", "line", "config/claude-account config/pi-account "),
+    ("d", "## 2.", "line", "config/supervision-host "),
+    ("d", "## 2.", "line", "config/trace-context "),
+    ("d", "## 2.", "line", "config/fleet-ledger "),
+    ("d", "## 2.", "line", "config/wedge-defer-parked-gate "),
+    ("d", "## 2.", "line", "config/watched-tools.json "),
+    ("b", "## 2.", "line", "  <id>.devin-config.json "),
+    # (e) Script-owned internal records the supervisor never reads or writes.
+    # Lines that say "never touch" stay, because they guard against a manual
+    # delete.
+    ("e", "## 2.", "line", "  <id>.progress "),
+    ("e", "## 2.", "line", "  <id>.reconcile-nudged "),
+    ("e", "## 2.", "line", "  <id>.backlog-close "),
+    ("e", "## 2.", "line", "  <id>.check-trust "),
+    ("e", "## 2.", "line", "  <id>.pr-poll-retirement "),
+    ("e", "## 2.", "line", "  <id>.merge-authority "),
+    ("e", "## 2.", "line", "  <id>.pr-poll-merge-notified "),
+    ("e", "## 2.", "line", "  tool-updates.check.sh "),
+    ("e", "## 2.", "line", "  .startup-network.* "),
+    ("e", "## 2.", "line", "  .<id>.open-decisions-cursor "),
+    ("e", "## 2.", "line", "  .<id>.home-appends "),
+    # (f) Section 3's step-by-step description of the startup digest's layout.
+    # The digest labels its own sections; steps 3 and 4 (the wake queue and
+    # supervision rules) stay.
+    ("f", "## 3.", "line", "1. **Lock** - "),
+    ("f", "## 3.", "range", ("2. **Bootstrap** - ", "   The secondmate liveness sweep ", 4)),
+    ("f", "## 3.", "range", ("5. **Fleet-state digest** - ", "   The closing reminder points back ", 7)),
+    # (g) Typed dispatch resolution: off without TYPESAFE_API_KEY in .env, so
+    # every run prints "dispatch-resolve: off" and changes nothing. Delete this
+    # line here once the key is configured.
+    ("g", "## 4.", "line", "Run `bin/fm-dispatch-resolve.sh` directly on the written brief "),
+    # (afk) Away-mode index lines. /afk loads its own skill with the full
+    # rules, and the wedge alarm defaults to a macOS notification without the
+    # file. Using away mode seriously: delete this whole group and re-run.
+    ("afk", "## 2.", "line", "config/wedge-alarm "),
+    ("afk", "## 2.", "line", "  afk-contracts/ "),
 ]
 
 USAGE = (
