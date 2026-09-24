@@ -21,6 +21,10 @@
 # the upstream bodies, so an upstream change to either function fails that test
 # until this file is re-checked against it.
 #
+# The hook's directive is `# shellcheck source=/dev/null` on purpose: following
+# this file would make ShellCheck report the replaced upstream definitions as
+# never invoked (SC2329). bin/fm-lint.sh bin/local/*.sh lints this file itself.
+#
 # Sourced by bin/fm-session-start.sh, never executed. Reads FM_ROOT,
 # AGENTS_BASELINE_FILE, and AGENTS_START_HASH, and calls hash_file_sha256,
 # agents_refresh_required, and section from fm-session-start.sh.

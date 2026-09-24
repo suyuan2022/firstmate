@@ -43,6 +43,7 @@ test_upstream_bodies_unchanged() {
     "upstream print_agents_refresh_if_required changed; re-check bin/local/fm-agents-refresh-lib.sh against it, then update PIN_PRINT"
   assert_equals "$PIN_START" "$(upstream_start_hash_block | fingerprint)" \
     "upstream AGENTS_START_HASH block changed; re-check bin/local/fm-agents-refresh-lib.sh against it, then update PIN_START"
+  # shellcheck disable=SC2016 # the literal hook line, not an expansion
   assert_grep '. "$SCRIPT_DIR/local/fm-agents-refresh-lib.sh"' "$SESSION_START" \
     "the fm-session-start.sh hook line that loads the local file is gone"
   pass "the two replaced upstream functions and the start-hash block still match what the local file was written against"

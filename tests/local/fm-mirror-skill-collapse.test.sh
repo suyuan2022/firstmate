@@ -75,6 +75,7 @@ test_unflagged_home_changes_nothing() {
 }
 
 test_hook_line_present() {
+  # shellcheck disable=SC2016 # the literal TypeScript hook line, not an expansion
   assert_grep '(globalThis as { fmLocalMirrorContent?: (tag: string, text: string) => string }).fmLocalMirrorContent?.(item.tag, item.text) ?? `[${item.tag}] ${item.text}`' \
     "$BRANCH_EXT" \
     "the LOCAL hook line in fm-branch-supervision.ts's flushMirror is missing or reshaped"

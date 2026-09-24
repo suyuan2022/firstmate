@@ -20,6 +20,7 @@ TMP_ROOT=$(fm_test_tmproot fm-watch-env)
 watcher_timings() {
   local home=$1; shift
   mkdir -p "$home/state" "$home/config"
+  # shellcheck disable=SC2016 # the inner script expands in the child shell
   env -u FM_PAUSE_RESURFACE_SECS -u FM_STALE_ESCALATE_SECS -u FM_TURNEND_CHURN_ABSORB_SECS \
     -u FM_BUSY_TURN_MAX_SECS -u FM_CONFIG_OVERRIDE \
     FM_HOME="$home" FM_STATE_OVERRIDE="$home/state" "$@" bash -c '
