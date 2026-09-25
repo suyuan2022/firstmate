@@ -145,6 +145,23 @@ check("off returns every held item", text.includes("[seq 5]") && text.includes("
 check("after off main gets the held row again", presentable(rows).length === 2);
 check("after off routine news shows again", deliver(row(7, "t1", "routine", "工人开始改了")) === true && entries.length === 2);
 check("broken input never blocks upstream", deliver(null) === false);
+
+// Away mode while focused: focus pauses, then ends on return and hands
+// everything to main in one triggered request.
+const { writeFileSync, rmSync } = await import("node:fs");
+await tools.fm_focus.execute("c5", { action: "on", topic: "聊方案" });
+check("held before leaving", deliver(row(8, "t1", "captain", "调研做完了")) === true);
+writeFileSync(\`\${d}/state/.afk-contract\`, "away\n");
+check("away mode passes captain rows to upstream", deliver(row(9, "t1", "captain", "PR 可审")) === false);
+check("nothing released while away", presentable([row(8, "t1", "captain", "x")]).length === 1 && messages.length === 0);
+rmSync(\`\${d}/state/.afk-contract\`);
+const back = presentable([row(8, "t1", "captain", "x")]);
+check("return ends focus and main gets the held row", back.length === 1);
+const told = messages.at(-1);
+check("return hands the held list to main in one triggered request",
+  messages.length === 1 && told.options.triggerTurn === true && told.message.display === false && told.message.content.includes("[seq 8]"));
+const listedAfter = await tools.fm_focus.execute("c6", { action: "list" });
+check("focus is off after the return", listedAfter.content[0].text.startsWith("现在没在专注"));
 JS
   out=$(run_js "$js" "$d") || fail "the extension script failed"$'\n'"$out"
   if printf '%s\n' "$out" | grep -q '^bad'; then fail "$(printf '%s\n' "$out" | grep '^bad')"; fi

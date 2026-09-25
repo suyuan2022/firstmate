@@ -22,7 +22,9 @@
 // acknowledged as usual. If the captain says nothing for FM_FOCUS_IDLE_SECS
 // (default 45 minutes), focus ends by itself and the held list goes to the
 // first mate in one hidden request, so a forgotten focus cannot hold things
-// forever. The away posture (state/.afk-contract) suspends focus.
+// forever. The away posture (state/.afk-contract) suspends focus; when the
+// captain comes back from it, focus ends and what it held goes to the first
+// mate in the same run as away mode's own summary, so he hears it all at once.
 //
 // Routine notes that show are session entries rendered for the captain only,
 // never model messages; the first mate reads the store with fm_branch_outcomes.
@@ -47,6 +49,7 @@ import {
   readHeld,
   readKeys,
   release,
+  returnedFromAway,
   taskStateKey,
   writeFocus,
   writeKey,
@@ -87,6 +90,7 @@ export default function localCaptainFocus(pi: ExtensionAPI): void {
 
   (globalThis as Hooks).fmLocalDeliverOutcome = (row) => {
     try {
+      returnedFromAway(p); // records that away mode began while focused
       const key = row.task === "fleet" ? "" : taskStateKey(stateDir, row.task);
       const delivery = decide(row, focusActive(p), readKeys(p)[row.task], key);
       if (row.task !== "fleet") writeKey(p, row.task, key);
@@ -112,6 +116,10 @@ export default function localCaptainFocus(pi: ExtensionAPI): void {
 
   (globalThis as Hooks).fmLocalPresentableOutcomes = (rows) => {
     try {
+      // Called at every run boundary before main is handed captain outcomes,
+      // including the first one after the captain returns from away mode, so a
+      // release here reaches main in the same run as away mode's own summary.
+      checkAwayReturn();
       return presentable(p, rows);
     } catch {
       return rows;
@@ -129,6 +137,17 @@ export default function localCaptainFocus(pi: ExtensionAPI): void {
     if (!focus.on) return undefined;
     return `（本机专注状态）船长从 ${clock(focus.since)} 起在专注：${focus.topic}。监督消息里不是〔立刻〕的由代码挡着，已攒 ${readHeld(p).length} 件。` +
       "他停下、换话题或问还有什么时，调用 fm_focus off，把返回的内容在一条回复里说完。";
+  }
+
+  function checkAwayReturn(): void {
+    if (!returnedFromAway(p)) return;
+    const focus = readFocus(p);
+    const items = release(p, now());
+    if (items.length === 0) return;
+    const head = "\u8239\u957f\u4ece\u79bb\u5f00\u6a21\u5f0f\u56de\u6765\u4e86";
+    tellMain(`${head}，专注（${focus.topic}）随之结束。离开前攒着的事如下，和离开期间的结果放在同一条回复里说完；` +
+      "其中带 seq 的如果出现在处理请求里，照常调用 fm_branch_processed，已经说过的只回一句。\n\n" +
+      formatHeld(items), true);
   }
 
   function checkIdle(): void {
@@ -152,6 +171,7 @@ export default function localCaptainFocus(pi: ExtensionAPI): void {
     if (timer) clearInterval(timer);
     timer = setInterval(() => {
       try {
+        checkAwayReturn();
         checkIdle();
       } catch {
         // A later tick retries; focus never blocks supervision.

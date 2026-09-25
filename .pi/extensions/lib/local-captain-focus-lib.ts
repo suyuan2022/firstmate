@@ -21,7 +21,8 @@ export type HeldItem =
   | { kind: "outcome"; seq: number; task: string; verdict: "routine" | "captain"; summary: string; at: number }
   | { kind: "note"; text: string; at: number };
 
-export type FocusRecord = { on: boolean; topic: string; since: number; lastCaptainAt: number };
+// awaySeen: the away posture was active at some point while focus was on.
+export type FocusRecord = { on: boolean; topic: string; since: number; lastCaptainAt: number; awaySeen?: boolean };
 
 export type Paths = { focus: string; held: string; history: string; keys: string; afk: string; state: string };
 
@@ -58,6 +59,7 @@ export function readFocus(p: Paths): FocusRecord {
     topic: typeof record.topic === "string" ? record.topic : "",
     since: typeof record.since === "number" ? record.since : 0,
     lastCaptainAt: typeof record.lastCaptainAt === "number" ? record.lastCaptainAt : 0,
+    awaySeen: record.awaySeen === true,
   };
 }
 
@@ -112,8 +114,23 @@ export function release(p: Paths, now: number): HeldItem[] {
     writeAtomic(p.history, `${history}${entry}\n`);
   }
   writeAtomic(p.held, "");
-  writeFocus(p, { ...focus, on: false });
+  writeFocus(p, { ...focus, on: false, awaySeen: false });
   return items;
+}
+
+/**
+ * Tracks the away posture across focus. Returns true exactly when the captain
+ * has come back from away mode while focus was on: focus should then end, so
+ * what was held before he left and what away mode gathered reach him together.
+ */
+export function returnedFromAway(p: Paths): boolean {
+  const focus = readFocus(p);
+  if (!focus.on) return false;
+  if (existsSync(p.afk)) {
+    if (!focus.awaySeen) writeFocus(p, { ...focus, awaySeen: true });
+    return false;
+  }
+  return focus.awaySeen === true;
 }
 
 /** Focus the captain has left alone this long ends by itself (never while away). */
