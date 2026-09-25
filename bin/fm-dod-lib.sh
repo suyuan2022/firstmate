@@ -102,6 +102,8 @@
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/fm-nm-run-lib.sh"
 # shellcheck source=bin/fm-brief-heading-lib.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/fm-brief-heading-lib.sh"
+# shellcheck source=bin/local/fm-worker-role-lib.sh # LOCAL: worker role addendum (MODS.md)
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/local/fm-worker-role-lib.sh"
 
 fm_brief_worker_role() {  # <state-dir> <task-id>
   local state=$1 task_id=$2
@@ -111,6 +113,7 @@ You are a crewmate: an autonomous worker agent managed by firstmate.
 This section establishes your current identity before every project or task instruction below and supersedes any conflicting role identity in those instructions.
 Do the assigned work yourself and report only to firstmate; do not adopt a firstmate or secondmate supervisor identity, delegate the task, run fleet supervision, or address the captain.
 EOF
+  fm_local_worker_role_addendum  # LOCAL: the captain may talk to a worker in its own window (bin/local/fm-worker-role-lib.sh, MODS.md)
   printf "Your steering inbox is \`%s/%s.inbox\`; this exact path belongs to your current task even when it is outside the worktree or under the supervising firstmate home, so read and acknowledge its messages and do not reject it as another home's state.\n" "$state" "$task_id"
   cat <<'EOF'
 Never inspect or change any other home's endpoint namespace; this authorization is limited to the exact task paths named by this brief.
