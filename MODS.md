@@ -21,6 +21,10 @@
 | `bin/fm-branch-prompt.sh:144` | 在监督分支系统提示末尾追加本机 `config/branch-prompt-include.md` 的内容 | `bin/local/fm-branch-prompt-include.sh` | 见下文「监督分支提示追加」 |
 | `bin/fm-session-start.sh:616-617` | 在 `AGENTS_START_HASH` 那一段之后载入本地文件；616 行是带标记的 `# shellcheck source=` 指令，617 行是 `.` 载入语句 | `bin/local/fm-agents-refresh-lib.sh` | 见下文「压缩后重印精简版手册」 |
 | `bin/fm-watch.sh:227-228` | 在看门程序读取 `FM_*` 时间参数之前载入本地文件；227 行是带标记的指令，228 行是 `.` 载入语句 | `bin/local/fm-watch-env-lib.sh` | 见下文「看门参数」 |
+| `.pi/extensions/fm-branch-supervision.ts:1042` | `presentUnprocessedOutcomes` 读出待处理的 captain 结果后，有 `globalThis.fmLocalPresentableOutcomes` 就先交给它筛一遍，没有就原样用 | `.pi/extensions/local-captain-focus.ts` | 见下文「船长专注和 ⛵ 备注」 |
+| `.pi/extensions/fm-branch-supervision.ts:1145` | `reconcileUnreadOutcomes` 逐条交付结果前，先问 `globalThis.fmLocalDeliverOutcome(row)`；返回 true 表示本地已处理（显示、攒着或不显示），否则走上游原来的交付 | `.pi/extensions/local-captain-focus.ts` | 同上 |
+| `bin/fm-dod-lib.sh:105-106` | 载入工人角色补充；105 行是带标记的 `# shellcheck source=` 指令，106 行是 `.` 载入语句 | `bin/local/fm-worker-role-lib.sh` | 见下文「方案窗」 |
+| `bin/fm-dod-lib.sh:116` | `fm_brief_worker_role` 在「不要对船长说话」那句后面紧跟一句本机例外 | `bin/local/fm-worker-role-lib.sh` | 同上 |
 | `.pi/extensions/fm-branch-supervision.ts:1416` | `flushMirror` 发镜像时，有 `globalThis.fmLocalMirrorContent` 就用它生成内容，没有就用上游原来的格式；行尾标 `// LOCAL:` | `.pi/extensions/local-mirror-skill-collapse.ts` | 见下文「镜像不带技能正文」 |
 
 ## 清单登记
@@ -49,15 +53,20 @@
 - `bin/local/chrome-devtools-mcp-cft.mjs` - 让 chrome-devtools-axi 启动 Chrome for Testing 的转接脚本，见下文「浏览器改用 Chrome for Testing」。
 - `.pi/extensions/local-chrome-devtools-cft.ts` - Pi 扩展，给手动启动的 Pi 大副进程设上同一个变量，见同一节。Pi 会自动加载 `.pi/extensions/` 下的文件，所以它不需要钩子。
 - `.pi/extensions/local-mirror-skill-collapse.ts` - Pi 扩展，提供镜像钩子调用的改写函数，见下文「镜像不带技能正文」。
+- `.pi/extensions/local-captain-focus.ts` - Pi 扩展，船长专注开关、`fm_focus` 工具和 ⛵ 备注筛选，见下文「船长专注和 ⛵ 备注」。
+- `.pi/extensions/lib/local-captain-focus-lib.ts` - 上面那个扩展的纯逻辑（怎么分流、攒着的清单、任务状态比对），不依赖 Pi，测试直接用 node 载入。
+- `bin/local/fm-worker-role-lib.sh` - 工人角色说明里的本机例外，见下文「方案窗」。
 - `tests/fm-local-mods.test.sh` - 测试入口 `bin/fm-test-run.sh` 只发现 `tests/*.test.sh`，这个文件依次运行 `tests/local/` 下的全部测试，让它们进入 `--all`、CI 分片和覆盖检查。
 - `tests/local/fm-spawn-setup-hook.test.sh` - spawn setup 钩子的行为测试，驱动真实的 `bin/fm-spawn.sh`。
 - `tests/local/fm-timeout-lib.test.sh` - 超时修复的行为测试，四种机制逐一强制运行。
 - `tests/local/fm-branch-prompt-include.test.sh` - 监督分支提示追加的行为测试，覆盖有文件、无文件、空文件和路径不是普通文件四种情况。
 - `tests/local/fm-chrome-devtools-mcp-cft.test.sh` - Chrome for Testing 转接脚本的行为测试：启动模式补上 `--executablePath`、候选优先级、attach 与显式指定时原样放行、找不到 Chrome for Testing 或真正的 mcp 时拒绝；本机装了 axi 时还检查它仍读取 `CHROME_DEVTOOLS_AXI_MCP_PATH`；Pi 扩展只在有开关、有脚本、变量未设时才设置。
 - `tests/local/fm-spawn-pane-exports.test.sh` - pane 环境变量钩子的行为测试，驱动真实的 `bin/fm-spawn.sh`：没开关时什么都不发，有开关时在 `GOTMPDIR` 之后发出，工人和二副启动后都带着这个变量。
-- `tests/local/fm-agents-trim.test.sh` - 精简脚本的行为测试：段落全部找到、缺段落时报错、`--check` 发现过期，并检查仓库里提交的 `AGENTS.local.md` 与当前 `AGENTS.md` 一致。
+- `tests/local/fm-agents-trim.test.sh` - 精简脚本的行为测试：段落全部找到、缺段落时报错、替换句全部换上且上游改了原句时报错、`--check` 发现过期，并检查仓库里提交的 `AGENTS.local.md` 与当前 `AGENTS.md` 一致。
 - `tests/local/fm-agents-refresh.test.sh` - 压缩后重印的行为测试，用从 `bin/fm-session-start.sh` 取出的真实函数跑：有 `AGENTS.override.md` 时只在精简版变了才重印、印的是精简版；没有时和上游一样。另外钉住被替换的两个上游函数的指纹，上游一改就报。
 - `tests/local/fm-mirror-skill-collapse.test.sh` - 镜像改写的行为测试：有开关时技能块换成一行、保留船长自己的话，其他消息和没开关时都和上游一样；并检查钩子行还在。
+- `tests/local/fm-captain-focus.test.sh` - 专注和备注筛选的行为测试：各种结果怎么分流、攒着的清单在专注开着时不交给大副、关掉后全部交回、离开模式时专注不生效、超时自动结束的判断；从临时目录载入真实扩展，经两个钩子函数和 `fm_focus` 工具走一遍，没有开关时什么都不装；并检查两行钩子还在。
+- `tests/local/fm-worker-role.test.sh` - 工人角色补充的行为测试：用真实的 `fm_brief_worker_role` 生成角色说明，上游那句原样保留，本机例外紧跟在它后面。
 - `tests/local/fm-watch-env.test.sh` - 看门参数的行为测试，载入真实的 `bin/fm-watch.sh`：没文件时是上游默认值，文件里的值生效，环境变量优先，坏行报出行号并保留默认值。
 
 ## 各项定制
@@ -110,7 +119,12 @@ axi 没开放 `--executablePath`，但 `CHROME_DEVTOOLS_AXI_MCP_PATH` 可以指�
 - (afk) 离开模式的两行索引：`config/wedge-alarm` 和 `afk-contracts/`。`/afk` 会加载自己的技能，里面有全部规则；不配 `config/wedge-alarm` 时告警默认弹 macOS 通知。要认真用离开模式时，把这一组整组删掉再重跑。
 
 no-mistakes 的流程说明一律保留；(d) 只删了 `config/wedge-defer-parked-gate` 这一行开关介绍，因为本机不用那个关卡。
-逐条清单的唯一出处是脚本里的 `PASSAGES`；每条都锚定在所属章节里，必须恰好匹配一次，区间还固定了行数。
+另有两组按原句替换（脚本里的 `REPLACEMENTS`，原句必须逐字匹配、恰好一次；替换为空就是删掉）：
+
+- (captain) 称呼：上游要求每条聊天回复都称呼 captain，并规定无事可报时只回 `Captain, shipshape.`，每条回复因此都带英文。改成「用中文称呼船长、不必每条都称呼、聊天里不写英文 Captain」，固定句改成 `船长，一切正常。`，这句的使用限制原样保留（上游 a2216406 防的是用这句打发掉可审的 PR）；删掉「偶尔用 aye、shipshape 等航海词」那一行。
+- (tiers) 第 9 节「立刻告诉船长」：清单六项原样保留，引导句改成按 `data/captain.md` 的三档（立刻、攒着、不说）决定什么时候说，后面加四句专注规矩：只有「立刻」这一档插话、一句话说完；船长专注时用 `fm_focus` 开关挡住其余结果；结束时一次说完；攒着的事不丢。上游原来防的是船长漏看可审的 PR 和调查结论，现在这些照样会说，只是专注时推到他停下来的时候，而且攒着的清单落盘，见下文「船长专注和 ⛵ 备注」。
+
+逐条清单的唯一出处是脚本里的 `PASSAGES` 和 `REPLACEMENTS`；每条都锚定在所属章节里，必须恰好匹配一次，区间还固定了行数。
 上游改动让任何一条找不到、匹配多处或行数变了，脚本就列出全部问题、什么都不写、以非零退出，这时对照新的上游文本更新 `PASSAGES` 再重跑。
 `bin/local/fm-agents-trim.sh --check` 只检查 `AGENTS.local.md` 是否与当前 `AGENTS.md` 生成的结果一致，不写文件。
 
@@ -155,9 +169,42 @@ Pi 大副会把船长和大副的对话抄给监督分支（`fm-main-mirror`）�
 改了要等看门程序重启才生效。
 不进上游的原因：参数取值是本机的取舍，上游已经提供了环境变量这个入口。
 
+### 船长专注和 ⛵ 备注
+
+船长的注意力是推动所有工作的瓶颈。上游有两处在跟它对着干：船长手测或聊方案时，每条监督结果照样出现在他的窗口里、大副还会接着回一句，把他拉去别的事；例行的 ⛵ 备注里很多是换个说法重复「还在等」，而且全都作为 custom 消息进了大副的上下文（一个会话一天半 151 条、约 24KB）。
+
+`.pi/extensions/local-captain-focus.ts` 在本机开关 `config/captain-focus`（空文件，gitignored，不继承）存在时，装上两个钩子函数和一个工具：
+
+- `fm_focus` 工具：大副在船长说要手测、要聊方案时打开专注（`on`），船长停下、换话题或问还有什么时关掉（`off`），关掉时返回攒着的全部内容，大副在一条回复里说完；大副自己判断要攒着的事用 `add` 记下。专注状态和攒着的清单存在 `state/.local-focus.json` 和 `state/.local-focus-held.jsonl`，重开会话、压缩上下文都不丢；压缩后和重开会话时扩展会给大副补一条隐藏消息，说明正在专注、攒了几件。释放过的清单追加到 `state/.local-focus-history.jsonl` 备查。专注期间界面上不显示任何计数。
+- 结果分流（`fmLocalDeliverOutcome`）：监督分支写 captain 结果时，船长必须马上知道的在摘要开头写「〔立刻〕」；写例行备注时，这次唤醒没有任何新东西就在开头写「〔无新进展〕」。这两条写在本机 `config/branch-prompt-include.md` 里。结果存储只允许 fleet 用 `silent`，读取时也按这条校验（`bin/fm-branch-outcome.sh`），所以用摘要前缀而不改存储格式。每条结果按下表处理，拿不准就显示：
+
+| 结果 | 专注关着 | 专注开着 |
+| --- | --- | --- |
+| captain，带〔立刻〕 | 上游原样处理 | 上游原样处理 |
+| captain，不带 | 上游原样处理 | 攒着 |
+| 例行，任务状态（最新状态行的种类加 `pr=`）跟上一条结果时比变了，或是第一次 | 显示给船长 | 攒着 |
+| 例行，状态没变、也没标〔无新进展〕 | 显示给船长 | 攒着 |
+| 例行，状态没变、标了〔无新进展〕 | 不显示 | 不显示 |
+| fleet 巡检，`silent` | 不显示 | 不显示 |
+
+  「显示给船长」是一条会话条目（`fm-local-routine-note`），照 ⛵ 的样子渲染，不进大副的上下文；大副要看时用 `fm_branch_outcomes` 查结果记录。所有结果都照常写进结果记录，被藏起来的也查得到。
+- 待处理结果筛选（`fmLocalPresentableOutcomes`）：专注开着时，攒着的 captain 结果不作为处理请求交给大副；关掉之后照常交给大副，大副照常用 `fm_branch_processed` 结案，已经说过的只回一句。
+- 兜底：船长 45 分钟（`FM_FOCUS_IDLE_SECS`）没说话，专注自动结束，攒着的清单作为一条隐藏请求交给大副，大副整理成一条回复，他回来就能看到。离开模式（`state/.afk-contract` 存在）时专注不生效，按离开模式的规矩走；船长从离开模式回来时，专注自动结束，攒着的清单和离开期间的结果在同一轮交给大副，一次说完。
+
+上游当初防的问题照样防住：提交 a2216406（#4738）防的是大副对「实现完成、可以审了」只回一句 shipshape、船长漏看 PR。现在这类结果只是在船长专注时推迟到他停下来，清单落盘，结束时一定交给大副，交回来的 captain 结果仍要走处理请求结案；专注开着时，处理请求只是不列攒着的那几条，已列出的仍按上游规矩回应。例行备注原来进大副上下文，是为了让大副知道舰队进展；现在大副靠 `fm_branch_outcomes` 按需查，captain 结果仍照常进大副的对话。
+钩子函数出错时返回「交给上游」，所以这个扩展坏了只会退回上游行为，不会吞掉结果。
+不进上游的原因：怎么分档、什么时候打断是船长个人的取舍。
+
+### 方案窗
+
+方案讨论放在大副窗口里，大副要逐句转手；放在看板里又慢。本机的做法是派一个侦察任务当方案窗，船长直接进它的窗口聊，大副只收一句结果和文件路径（大副的规矩写在本机项目提醒里）。
+上游的工人角色说明（`bin/fm-dod-lib.sh` 的 `fm_brief_worker_role`）写着工人「不要对船长说话」。这句是 702004ed（#3797）加的，防的是在 firstmate 仓库里干活的工人读到 `AGENTS.md`，把自己当成大副、以大副身份对船长说话。
+`bin/local/fm-worker-role-lib.sh` 在这句后面紧跟一句本机例外：除了 firstmate 收件箱的提示行，打进工人自己窗口的字就是船长在直接跟它说话，用中文在那里回答他；状态和结果仍只报给 firstmate。上游那句原样保留，工人仍不会当大副、不会替船长做监督，firstmate 只通过固定的收件箱提示行碰工人的终端（`bin/fm-send.sh`），所以两者分得开。
+不进上游的原因：让船长直接跟工人聊是本机的用法。
+
 ## 拉上游之后
 
-1. 解决冲突时保留带 `LOCAL:` 标记的行；`bin/fm-spawn.sh` 里 `run_spawn_setup_hook` 调用行必须仍紧跟在 `freshen_spawn_worktree_base "$WT" || exit 1` 之后，原因见 `bin/local/fm-spawn-setup-lib.sh` 里 `run_spawn_setup_hook` 上方的注释；`spawn_local_pane_exports` 调用行必须仍在上游启动前 export 那一段里、发送启动命令之前；`bin/fm-session-start.sh` 的载入行必须仍在 `AGENTS_START_HASH` 那一段之后；`bin/fm-watch.sh` 的载入行必须仍在 `POLL=${FM_POLL:-15}` 之前。
+1. 解决冲突时保留带 `LOCAL:` 标记的行；`bin/fm-spawn.sh` 里 `run_spawn_setup_hook` 调用行必须仍紧跟在 `freshen_spawn_worktree_base "$WT" || exit 1` 之后，原因见 `bin/local/fm-spawn-setup-lib.sh` 里 `run_spawn_setup_hook` 上方的注释；`spawn_local_pane_exports` 调用行必须仍在上游启动前 export 那一段里、发送启动命令之前；`bin/fm-session-start.sh` 的载入行必须仍在 `AGENTS_START_HASH` 那一段之后；`bin/fm-watch.sh` 的载入行必须仍在 `POLL=${FM_POLL:-15}` 之前；`fm-branch-supervision.ts` 的两行钩子必须仍分别是 `reconcileUnreadOutcomes` 里交付每条结果的那个分支判断、`presentUnprocessedOutcomes` 里读出待处理结果的那一行；`bin/fm-dod-lib.sh` 的调用行必须仍紧跟在 `fm_brief_worker_role` 里「address the captain」那段 heredoc 之后。
 2. 运行 `bin/local/fm-agents-trim.sh`；成功就提交生成的 `AGENTS.local.md`，报错就按上一节更新 `PASSAGES` 后重跑。
 3. 运行 `grep -rn 'LOCAL:' bin/*.sh .pi/extensions/fm-*.ts`，核对结果与「钩子」一节一致，行号变了就更新本文件。
 4. 运行 `bin/fm-lint.sh`，再运行 `bin/fm-lint.sh bin/local/*.sh tests/local/*.sh`：默认的 lint 范围是 `bin/*.sh`、`bin/backends/*.sh` 和 `tests/*.sh`，不包括 `bin/local/` 和 `tests/local/`。

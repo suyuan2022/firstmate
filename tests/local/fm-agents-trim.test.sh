@@ -17,6 +17,20 @@ set -u
 TRIM="$ROOT/bin/local/fm-agents-trim.sh"
 TMP_ROOT=$(fm_test_tmproot fm-agents-trim)
 
+# How every line the REPLACEMENTS list writes begins; nothing else may be new.
+# shellcheck disable=SC2016 # Backticks are literal AGENTS.md Markdown.
+REPLACED=(
+  'Address the user in Chinese as '
+  "Reply language and layout follow this home's captain preferences "
+  'Bring these to the captain, timed by the three tiers '
+  'Only the '
+  'When the captain settles into one thing '
+  'When he stops, clearly changes topic, '
+  'Held items are never dropped: '
+  'Reply exactly `'
+  'For a captain-requested completion, '
+)
+
 # Lines that start with the given text, counted the way the script anchors them.
 count_starting() { # <file> <leading text>
   awk -v p="$2" 'index($0, p) == 1 { n++ } END { print n + 0 }' "$1"
@@ -43,11 +57,18 @@ test_every_passage_is_found_and_only_listed_lines_go() {
     '<!-- LOCAL: '*) ;;
     *) fail "the generated file does not open with its LOCAL marker line" ;;
   esac
-  # Only whole lines are removed: every remaining line is an AGENTS.md line in
-  # its original order, and nothing about no-mistakes is lost.
-  if diff <(tail -n +2 "$out") "$ROOT/AGENTS.md" | grep -q '^<'; then
-    fail "the generated file carries a line AGENTS.md does not"
-  fi
+  # Only whole lines are removed: apart from the listed replacements, every
+  # remaining line is an AGENTS.md line in its original order, and nothing
+  # about no-mistakes is lost.
+  local line prefix known
+  while IFS= read -r line; do
+    known=0
+    [ -n "$line" ] || known=1
+    for prefix in "${REPLACED[@]}"; do
+      [ "${line#"$prefix"}" != "$line" ] && known=1
+    done
+    [ "$known" -eq 1 ] || fail "the generated file carries a line AGENTS.md does not and no replacement names: $line"
+  done < <(diff <(tail -n +2 "$out") "$ROOT/AGENTS.md" | sed -n 's/^< //p')
   [ "$(grep -c 'no-mistakes' "$out")" -eq "$(grep -c 'no-mistakes' "$ROOT/AGENTS.md")" ] \
     || fail "a line mentioning no-mistakes was removed"
   pass "every listed passage is found and removed as whole lines, keeping everything about no-mistakes"
@@ -83,6 +104,24 @@ test_a_passage_upstream_no_longer_carries_stops_the_run() {
   pass "a missing, ambiguous, or resized passage stops the run, names it, and writes nothing"
 }
 
+test_replacements_swap_in_the_local_wording_and_stop_on_upstream_change() {
+  local out="$TMP_ROOT/replaced.md" changed="$TMP_ROOT/changed.md" gone
+  "$TRIM" --source "$ROOT/AGENTS.md" --output "$out" >/dev/null || fail "could not generate the replacement fixture"
+  # shellcheck disable=SC2016 # Backticks are literal AGENTS.md Markdown.
+  for gone in 'Address the user as "captain" at least once' 'This is mandatory respectful address' \
+    'Use light nautical seasoning' 'Reach the captain immediately for:' 'Reply exactly `Captain, shipshape.`'; do
+    [ "$(count_starting "$ROOT/AGENTS.md" "$gone")" -eq 1 ] || fail "fixture drift: AGENTS.md has no line starting '$gone'"
+    [ "$(count_starting "$out" "$gone")" -eq 0 ] || fail "a replaced line survived: '$gone'"
+  done
+  [ "$(grep -c 'Captain, shipshape' "$out")" -eq 0 ] || fail "the English no-op reply survived"
+  [ "$(count_starting "$out" 'When the captain settles into one thing ')" -eq 1 ] || fail "the focus rule is missing"
+  [ "$(count_starting "$out" '- Work ready for their review, with the PR')" -eq 1 ] || fail "the section 9 list lost an item"
+  awk '{ sub(/This is mandatory respectful address, not performance/, "This is mandatory address"); print }' \
+    "$ROOT/AGENTS.md" > "$changed"
+  expect_refusal changed "$changed" "replacement in 'preamble' starting 'Address the user as" "a replaced line upstream reworded"
+  pass "the replacements swap in the local wording and stop the run when upstream rewords a replaced line"
+}
+
 test_check_tells_current_from_stale() {
   local out="$TMP_ROOT/check.md" err rc=0 before
   "$TRIM" --source "$ROOT/AGENTS.md" --output "$out" >/dev/null || fail "could not generate the check fixture"
@@ -105,6 +144,7 @@ test_check_tells_current_from_stale() {
 test_every_passage_is_found_and_only_listed_lines_go
 test_committed_trim_is_current
 test_a_passage_upstream_no_longer_carries_stops_the_run
+test_replacements_swap_in_the_local_wording_and_stop_on_upstream_change
 test_check_tells_current_from_stale
 
 echo "# all fm-agents-trim tests passed"
