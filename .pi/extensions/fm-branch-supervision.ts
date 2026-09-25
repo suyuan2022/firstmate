@@ -1039,7 +1039,7 @@ export default function (pi: ExtensionAPI) {
   // triggered budget over. Nothing here advances the processed marker: only
   // fm_branch_processed does, keyed to the sequence main acknowledges.
   async function presentUnprocessedOutcomes(expectedGeneration: number): Promise<boolean> {
-    const rows = await readUnprocessedOutcomes(expectedGeneration);
+    const rows = ((read) => (globalThis as { fmLocalPresentableOutcomes?: (rows: OutcomeRow[] | null) => OutcomeRow[] | null }).fmLocalPresentableOutcomes?.(read) ?? read)(await readUnprocessedOutcomes(expectedGeneration)); // LOCAL: focus holds captain outcomes back from main (.pi/extensions/local-captain-focus.ts, MODS.md)
     if (rows === null) return false;
     if (rows.length === 0) {
       processing = null;
@@ -1142,7 +1142,7 @@ export default function (pi: ExtensionAPI) {
         // representation for routine delivery, which changes the delivery
         // contract rather than this ordering, so it is deliberately not done
         // here.
-        if (row.verdict === "captain") {
+        if ((globalThis as { fmLocalDeliverOutcome?: (row: OutcomeRow) => boolean }).fmLocalDeliverOutcome?.(row) === true) { /* delivered, held, or hidden locally */ } else if (row.verdict === "captain") { // LOCAL: home-local focus hold and routine-note filter (.pi/extensions/local-captain-focus.ts, MODS.md)
           if (!ensureVisibleCaptainOutcome(row)) return false;
         } else {
           deliverRoutineOutcome(row);
