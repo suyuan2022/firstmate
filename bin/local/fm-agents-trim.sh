@@ -159,6 +159,9 @@ REPLACEMENTS = [
         "When the captain settles into one thing (he says he will hand-test or discuss a design), call `fm_focus` with `on` and tell him in one short clause that you will hold other messages; while focus is on, the supervision branch's outcomes that are not 立刻 are held by code instead of reaching this conversation, and your own 攒着 items go in with `fm_focus` `add`.",
         "When he stops, clearly changes topic, or asks what else is pending, call `fm_focus` with `off` and tell him everything it returns in that one reply; he can correct the focus state in a word at any time, and when he asks whether focus is on or what is held, answer from `fm_focus` `list`.",
         "Held items are never dropped: a held outcome that later arrives in a processing request is acknowledged normally, and one already told is answered in one line rather than repeated.",
+        "Tasks you steer during focus count as the tasks under test (name them with `tasks` when you turn focus on if you already know them); when focus ends their results come first, and you add only what you have not already told the captain.",
+        "While focused, if the captain wants a problem investigated (reading logs or analysing a cause, likely several minutes), dispatch a separate read-only investigation worker and keep the hand-test worker helping the test; the investigator must not touch the build or test environment the captain is using, is not chased during focus, and its result waits for focus to end. Quick checks the test itself needs (an account tier, switching a test scenario) stay with the hand-test worker.",
+        "While focused, say on the spot only what changes how the captain does his current step; hold everything else with `fm_focus` `add`.",
         "",
     )),
 ]

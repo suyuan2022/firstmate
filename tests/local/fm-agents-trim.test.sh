@@ -27,6 +27,9 @@ REPLACED=(
   'When the captain settles into one thing '
   'When he stops, clearly changes topic, '
   'Held items are never dropped: '
+  'Tasks you steer during focus count as the tasks under test '
+  'While focused, if the captain wants a problem investigated '
+  'While focused, say on the spot only '
   'Reply exactly `'
   'For a captain-requested completion, '
 )
