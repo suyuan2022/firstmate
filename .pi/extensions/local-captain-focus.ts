@@ -42,7 +42,9 @@ import { Type } from "typebox";
 import {
   decide,
   focusActive,
+  focusTasks,
   formatHeld,
+  formatHeldForRelease,
   hold,
   idleExpired,
   paths,
@@ -50,8 +52,10 @@ import {
   readFocus,
   readHeld,
   readKeys,
+  noteSteer,
   release,
   returnedFromAway,
+  tasksFromCommand,
   taskStateKey,
   writeFocus,
   writeKey,
@@ -64,6 +68,13 @@ const HIDDEN_MARK = String.fromCharCode(0x2063);
 // fm-calm.ts publishes its presentation state on this event; stock export
 // rendering means a session export is being drawn with Pi's own renderers.
 const CALM_PRESENTATION_EVENT = "firstmate:calm-presentation";
+// "Tasks under test: "
+const UNDER_TEST_LABEL = "\u6b63\u5728\u6d4b\u7684\u4efb\u52a1\uff1a";
+// "(focused) the task under test has a new result, held by code. Say it now only
+// if it changes how the captain does his current step; otherwise after focus ends:"
+const HELD_UNDER_TEST =
+  "\uff08\u4e13\u6ce8\u4e2d\uff09\u6b63\u5728\u6d4b\u7684\u4efb\u52a1\u6709\u65b0\u7ed3\u679c\uff0c\u4ee3\u7801\u5df2\u6512\u7740\u3002" +
+  "\u53ea\u6709\u5b83\u4f1a\u6539\u53d8\u8239\u957f\u624b\u4e0a\u8fd9\u4e00\u6b65\u600e\u4e48\u6d4b\u65f6\u624d\u5f53\u573a\u8bf4\uff0c\u5426\u5219\u7b49\u4e13\u6ce8\u7ed3\u675f\u518d\u8bf4\uff1a";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const fmHome = process.env.FM_HOME || process.env.FM_ROOT_OVERRIDE || root;
@@ -109,6 +120,11 @@ export default function localCaptainFocus(pi: ExtensionAPI): void {
           return false;
         case "hold":
           hold(p, { kind: "outcome", seq: row.seq, task: row.task, verdict: row.verdict, summary: row.summary, at: now() });
+          // A result for the task under test may be one the first mate did not
+          // go and ask for (a scheduled job finishing, say). Let him know now,
+          // without a turn of its own; he decides whether it changes the
+          // captain's current step.
+          if (focusTasks(readFocus(p)).includes(row.task)) tellMain(heldUnderTestNote(row), false);
           return true;
         case "show":
           if (!shown.has(row.seq)) {
@@ -136,6 +152,10 @@ export default function localCaptainFocus(pi: ExtensionAPI): void {
     }
   };
 
+  function heldUnderTestNote(row: OutcomeRow): string {
+    return HELD_UNDER_TEST + "\n[seq " + row.seq + "] " + row.task + ": " + row.summary;
+  }
+
   function tellMain(content: string, trigger: boolean): void {
     const message = { customType: FOCUS_MESSAGE, content, display: false };
     if (trigger) pi.sendMessage(message, { triggerTurn: true, deliverAs: "followUp" });
@@ -152,6 +172,13 @@ export default function localCaptainFocus(pi: ExtensionAPI): void {
       "他停下、换话题或问还有什么时，调用 fm_focus off，把返回的内容在一条回复里说完。";
   }
 
+  // Appends the tasks under test to the first mate's focus reminder.
+  function withTasks(reminder: string | undefined): string | undefined {
+    if (!reminder) return reminder;
+    const tasks = focusTasks(readFocus(p));
+    return tasks.length ? reminder + "\n" + UNDER_TEST_LABEL + tasks.join(", ") : reminder;
+  }
+
   function checkAwayReturn(): void {
     if (!returnedFromAway(p)) return;
     const focus = readFocus(p);
@@ -160,7 +187,7 @@ export default function localCaptainFocus(pi: ExtensionAPI): void {
     tellMain(
       "船长从离开模式回来了，专注（" + focus.topic + "）随之结束。离开前攒着的事如下，和离开期间的结果放在同一条回复里说完；" +
         "其中带 seq 的如果出现在处理请求里，照常调用 fm_branch_processed，已经说过的只回一句。\n\n" +
-        formatHeld(items),
+        formatHeldForRelease(items, focusTasks(focus)),
       true,
     );
   }
@@ -173,7 +200,7 @@ export default function localCaptainFocus(pi: ExtensionAPI): void {
     tellMain(
       "船长 " + Math.round(idleSeconds() / 60) + " 分钟没说话，专注（" + focus.topic + "）已自动结束。攒着的事如下，整理成一条回复，他回来就能一次看完；" +
         "其中带 seq 的如果之后出现在处理请求里，照常调用 fm_branch_processed，回复只写一句「上面说过了」。\n\n" +
-        formatHeld(items),
+        formatHeldForRelease(items, focusTasks(focus)),
       true,
     );
   }
@@ -193,12 +220,18 @@ export default function localCaptainFocus(pi: ExtensionAPI): void {
       }
     }, 60_000);
     timer.unref?.();
-    const reminder = focusReminder();
+    const reminder = withTasks(focusReminder());
     if (reminder) tellMain(reminder, false);
   });
 
+  pi.on("tool_call", (event) => {
+    if (event.toolName !== "bash") return;
+    const command = (event.input as { command?: unknown }).command;
+    if (typeof command === "string") noteSteer(p, tasksFromCommand(command));
+  });
+
   pi.on("session_compact", () => {
-    const reminder = focusReminder();
+    const reminder = withTasks(focusReminder());
     if (reminder) tellMain(reminder, false);
   });
 
@@ -246,9 +279,13 @@ export default function localCaptainFocus(pi: ExtensionAPI): void {
       action: Type.Union([Type.Literal("on"), Type.Literal("off"), Type.Literal("add"), Type.Literal("list")]),
       topic: Type.Optional(Type.String({ description: "For on: what the captain is focused on, a few words" })),
       text: Type.Optional(Type.String({ description: "For add: the item to tell the captain later, one sentence" })),
+      tasks: Type.Optional(Type.Array(Type.String(), {
+        description: "For on: task ids the captain is testing or discussing, if known; tasks you steer during focus are picked up anyway",
+      })),
     }),
     execute: async (_toolCallId, params) => {
-      const { action, topic, text } = params as { action: string; topic?: string; text?: string };
+      const { action, topic, text, tasks } = params as { action: string; topic?: string; text?: string; tasks?: unknown };
+      const named = Array.isArray(tasks) ? tasks.filter((task): task is string => typeof task === "string" && task.trim() !== "").map((task) => task.trim()) : [];
       const reply = (message: string, isError = false) => ({
         content: [{ type: "text" as const, text: message }],
         details: undefined,
@@ -258,7 +295,16 @@ export default function localCaptainFocus(pi: ExtensionAPI): void {
       if (action === "on") {
         const t = now();
         const newTopic = topic?.trim() || focus.topic || "（未写）";
-        writeFocus(p, { on: true, topic: newTopic, since: focus.on ? focus.since : t, lastCaptainAt: t });
+        // Turning focus on again while it is on keeps its start, its steering
+        // counts, and the tasks already named; a new focus starts clean.
+        writeFocus(p, {
+          on: true,
+          topic: newTopic,
+          since: focus.on ? focus.since : t,
+          lastCaptainAt: t,
+          tasks: [...new Set([...(focus.on ? focus.tasks ?? [] : []), ...named])],
+          sends: focus.on ? focus.sends ?? {} : {},
+        });
         return reply("专注已开：" + newTopic + "。");
       }
       if (action === "add") {
@@ -270,9 +316,10 @@ export default function localCaptainFocus(pi: ExtensionAPI): void {
         return reply((focus.on ? "专注中：" + focus.topic : "现在没在专注") + "\n\n" + formatHeld(readHeld(p)));
       }
       if (action === "off") {
+        const tasks = focusTasks(focus);
         const items = release(p, now());
         return reply(
-          "专注已结束。" + formatHeld(items) +
+          "专注已结束。" + formatHeldForRelease(items, tasks) +
             (items.length
               ? "\n\n在这条回复里一次告诉船长。带 seq 的如果之后出现在处理请求里，照常调用 fm_branch_processed，回复只写一句「上面说过了」。"
               : ""),

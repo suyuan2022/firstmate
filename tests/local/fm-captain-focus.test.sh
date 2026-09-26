@@ -98,7 +98,7 @@ make_checkout() { # <name> <flag:yes|no>
   printf '{"name":"@earendil-works/pi-tui","type":"module","exports":"./index.js"}\n' > "$d/node_modules/@earendil-works/pi-tui/package.json"
   printf 'export class Text { constructor(text) { this.text = text; } }\nexport class Container {}\n' > "$d/node_modules/@earendil-works/pi-tui/index.js"
   printf '{"name":"typebox","type":"module","exports":"./index.js"}\n' > "$d/node_modules/typebox/package.json"
-  printf 'const id = (...a) => a; export const Type = { Object: id, Union: id, Literal: id, Optional: id, String: id };\n' > "$d/node_modules/typebox/index.js"
+  printf 'const id = (...a) => a; export const Type = { Object: id, Union: id, Literal: id, Optional: id, String: id, Array: id };\n' > "$d/node_modules/typebox/index.js"
   printf '{"name":"@earendil-works/pi-coding-agent","type":"module","exports":"./index.js"}\n' > "$d/node_modules/@earendil-works/pi-coding-agent/package.json"
   printf 'export {};\n' > "$d/node_modules/@earendil-works/pi-coding-agent/index.js"
   [ "$2" = yes ] && : > "$d/config/captain-focus"
@@ -198,6 +198,79 @@ console.log(typeof globalThis.fmLocalDeliverOutcome);
   pass "the extension holds, shows, hides, and releases through its hooks and tool, and installs nothing without its flag"
 }
 
+# Replays the automatic-renewal hand test (2026-09-26, outcome seq 620-641):
+# focus on at 14:32, the first mate steering hw-renewal-prod-verify step by
+# step, focus off at 15:10. During focus the captain's window must gain no
+# anchor or sailboat line and main no processing request; after it, main gets
+# the held captain rows once, and the release lists the task under test first.
+test_replay_of_the_renewal_hand_test() {
+  local d js="$TMP_ROOT/replay.mjs" out
+  d=$(make_checkout replay yes)
+  printf 'note: B step\n' > "$d/state/hw-renewal-prod-verify.status"
+  printf 'paused [at=1]: waiting for captain\n' > "$d/state/hw-renewal-test-fixture.status"
+  printf 'paused [at=1]: waiting for captain\n' > "$d/state/hd-resubmit-failure-cards.status"
+  cat > "$js" <<JS
+const d = process.argv[2];
+const entries = [], messages = [], handlers = {}, tools = {};
+const pi = {
+  on: (name, fn) => { (handlers[name] ??= []).push(fn); },
+  appendEntry: (type, data) => entries.push({ type, data }),
+  sendMessage: (message, options) => messages.push({ message, options }),
+  registerTool: (tool) => { tools[tool.name] = tool; },
+  registerEntryRenderer: () => {},
+};
+const m = await import(\`file://\${d}/.pi/extensions/local-captain-focus.ts\`);
+m.default(pi);
+const deliver = globalThis.fmLocalDeliverOutcome, presentable = globalThis.fmLocalPresentableOutcomes;
+const check = (label, ok) => console.log(ok ? "ok" : \`bad \${label}\`);
+const steer = (task) => { for (const fn of handlers.tool_call) fn({ toolName: "bash", input: { command: \`bin/fm-lease.sh claim \${task} >/dev/null 2>&1 && bin/fm-send.sh \${task} 'next step'\` } }); };
+const T = "hw-renewal-prod-verify";
+const R = (seq, task, verdict, summary) => ({ seq, task, verdict, summary, silent: false });
+// Before focus: an ordinary morning.
+const before = [R(620, "hw-renewal-test-fixture", "routine", "〔无新进展〕仍在部署"), R(622, "hd-resubmit-failure-cards", "captain", "GAP-08 PR 已开")];
+for (const row of before) deliver(row);
+await tools.fm_focus.execute("on", { action: "on", topic: "自动续费 B 手测" });
+const captainRowsDuringFocus = [];
+let upstreamDuringFocus = 0, entriesBefore = entries.length;
+const during = [
+  ["steer"], R(627, T, "captain", "第 0 组通过"), R(628, T, "routine", "〔无新进展〕等第 1 步"),
+  ["steer"], R(629, T, "routine", "第 1 组库核对通过"), R(630, T, "routine", "〔无新进展〕等第 2 步"),
+  ["steer"], R(631, T, "captain", "第 3 步改好库"), R(632, T, "routine", "〔无新进展〕等预告"),
+  R(633, T, "captain", "第 3 组通过"), R(634, T, "routine", "〔无新进展〕等可以扣"),
+  ["steer"], R(635, T, "captain", "第 4 步改好库"), R(636, T, "routine", "〔无新进展〕等扣款"),
+  R(637, T, "routine", "〔无新进展〕等 tick"), ["steer"], R(638, T, "captain", "当天没扣成"),
+];
+for (const step of during) {
+  if (Array.isArray(step)) { steer(T); continue; }
+  if (deliver(step) === false) upstreamDuringFocus += 1;
+  if (step.verdict === "captain") captainRowsDuringFocus.push(step);
+}
+check("no anchor line during focus", upstreamDuringFocus === 0);
+check("no sailboat line during focus", entries.length === entriesBefore);
+check("no processing request during focus", presentable(captainRowsDuringFocus).length === 0);
+const heads = messages.filter((x) => x.options.triggerTurn === false && x.message.content.includes("[seq "));
+// One steer can be a stray follow-up, so the task counts from its second
+// steer: seq 627 arrives after the first, every later held result after more.
+check("main hears held results of the task under test without a turn", heads.length === 5 && heads.every((x) => x.message.display === false));
+const off = (await tools.fm_focus.execute("off", { action: "off" })).content[0].text;
+check("release lists the task under test first", off.indexOf(T) < off.indexOf("[seq 627]") && /\u6b63\u5728\u6d4b\u7684\u4efb\u52a1/.test(off.split("\n")[0].replace(/^[^\n]*?\u3002/, "")));
+check("release keeps every held result", [627, 629, 631, 633, 635, 638].every((seq) => off.includes(seq === 629 ? "第 1 组库核对通过" : \`[seq \${seq}]\`)));
+check("after focus main gets the held captain rows once", presentable(captainRowsDuringFocus).length === 5);
+const { readFileSync } = await import("node:fs");
+const focusFile = \`\${d}/state/.local-focus.json\`;
+const record = JSON.parse(readFileSync(focusFile, "utf8"));
+check("release clears the tasks under test", record.tasks.length === 0 && Object.keys(record.sends).length === 0);
+await tools.fm_focus.execute("on2", { action: "on", topic: "x", tasks: ["a"] });
+await tools.fm_focus.execute("on3", { action: "on", topic: "x", tasks: ["b"] });
+check("on while focused merges named tasks", JSON.stringify(JSON.parse(readFileSync(focusFile, "utf8")).tasks) === '["a","b"]');
+for (const fn of handlers.tool_call) fn({ toolName: "read", input: { command: "bin/fm-send.sh c x" } });
+check("only bash commands count as steering", !("c" in JSON.parse(readFileSync(focusFile, "utf8")).sends));
+JS
+  out=$(run_js "$js" "$d") || fail "the replay script failed"$'\n'"$out"
+  if printf '%s\n' "$out" | grep -q '^bad'; then fail "$(printf '%s\n' "$out" | grep '^bad')"; fi
+  pass "the renewal hand test replays with nothing shown and no processing request during focus, and one complete release after it"
+}
+
 test_hook_lines_call_the_local_functions() {
   local deliver present
   deliver=$(grep -c 'fmLocalDeliverOutcome?.(row) === true) { /\* delivered, held, or hidden locally \*/ } else if (row.verdict === "captain") { // LOCAL:' "$BRANCH_EXT")
@@ -210,6 +283,7 @@ test_hook_lines_call_the_local_functions() {
 test_delivery_decisions
 test_hold_release_and_presentable
 test_extension_end_to_end
+test_replay_of_the_renewal_hand_test
 test_hook_lines_call_the_local_functions
 
 echo "# all fm-captain-focus tests passed"

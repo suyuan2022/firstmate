@@ -175,6 +175,7 @@ Pi 大副会把船长和大副的对话抄给监督分支（`fm-main-mirror`）�
 
 `.pi/extensions/local-captain-focus.ts` 在本机开关 `config/captain-focus`（空文件，gitignored，不继承）存在时，装上两个钩子函数和一个工具：
 
+- 正在测的任务：专注期间大副用 `fm-send.sh` 或 `fm-lease.sh claim` 指挥过两次以上的任务，加上开专注时 `tasks` 里写明的，算正在测。它们的结果照样攒着，不在手测中间显示；攒下时给大副发一条不另开一轮的隐藏消息；专注结束时单独列成一组，大副只补没当面说过的。不放行它们，是因为上游的「已处理」是一条水位线，大副结案一条就会把之前攒着的别的任务一并标成已处理。`fm_focus` 的调用和结果不在船长窗口显示，导出会话时照常显示。
 - `fm_focus` 工具：大副在船长说要手测、要聊方案时打开专注（`on`），船长停下、换话题或问还有什么时关掉（`off`），关掉时返回攒着的全部内容，大副在一条回复里说完；大副自己判断要攒着的事用 `add` 记下。专注状态和攒着的清单存在 `state/.local-focus.json` 和 `state/.local-focus-held.jsonl`，重开会话、压缩上下文都不丢；压缩后和重开会话时扩展会给大副补一条隐藏消息，说明正在专注、攒了几件。释放过的清单追加到 `state/.local-focus-history.jsonl` 备查。专注期间界面上不显示任何计数。
 - 结果分流（`fmLocalDeliverOutcome`）：监督分支写 captain 结果时，船长必须马上知道的在摘要开头写「〔立刻〕」；写例行备注时，这次唤醒没有任何新东西就在开头写「〔无新进展〕」。这两条写在本机 `config/branch-prompt-include.md` 里。结果存储只允许 fleet 用 `silent`，读取时也按这条校验（`bin/fm-branch-outcome.sh`），所以用摘要前缀而不改存储格式。每条结果按下表处理，拿不准就显示：
 

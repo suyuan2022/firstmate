@@ -22,7 +22,18 @@ export type HeldItem =
   | { kind: "note"; text: string; at: number };
 
 // awaySeen: the away posture was active at some point while focus was on.
-export type FocusRecord = { on: boolean; topic: string; since: number; lastCaptainAt: number; awaySeen?: boolean };
+// tasks: tasks the first mate named when turning focus on.
+// sends: how many of the first mate's commands during this focus steered each
+// task (fm-send.sh or fm-lease.sh claim); see focusTasks.
+export type FocusRecord = {
+  on: boolean;
+  topic: string;
+  since: number;
+  lastCaptainAt: number;
+  awaySeen?: boolean;
+  tasks?: string[];
+  sends?: Record<string, number>;
+};
 
 export type Paths = { focus: string; held: string; history: string; keys: string; afk: string; state: string };
 
@@ -60,7 +71,38 @@ export function readFocus(p: Paths): FocusRecord {
     since: typeof record.since === "number" ? record.since : 0,
     lastCaptainAt: typeof record.lastCaptainAt === "number" ? record.lastCaptainAt : 0,
     awaySeen: record.awaySeen === true,
+    tasks: Array.isArray(record.tasks) ? record.tasks.filter((task): task is string => typeof task === "string") : [],
+    sends: record.sends && typeof record.sends === "object" ? record.sends : {},
   };
+}
+
+/**
+ * The tasks the captain is working through right now. The first mate steers
+ * the task under test on every step (claim, then send), so a task steered at
+ * least twice during this focus counts; one steer can be a stray follow-up in
+ * the same breath as turning focus on. Tasks named at `on` always count.
+ */
+export function focusTasks(focus: FocusRecord): string[] {
+  const steered = Object.entries(focus.sends ?? {}).filter(([, count]) => count >= 2).map(([task]) => task);
+  return [...new Set([...(focus.tasks ?? []), ...steered])].sort();
+}
+
+/** Task ids a shell command steers through fm-send.sh or claims through fm-lease.sh. */
+export function tasksFromCommand(command: string): string[] {
+  const found = new Set<string>();
+  const pattern = /fm-(?:send\.sh|lease\.sh\s+claim)\s+([A-Za-z0-9][A-Za-z0-9._-]*)/g;
+  for (const match of command.matchAll(pattern)) found.add(match[1]);
+  return [...found];
+}
+
+/** Counts one steering command during focus; outside focus it records nothing. */
+export function noteSteer(p: Paths, tasks: string[]): void {
+  if (tasks.length === 0) return;
+  const focus = readFocus(p);
+  if (!focus.on) return;
+  const sends = { ...(focus.sends ?? {}) };
+  for (const task of tasks) sends[task] = (sends[task] ?? 0) + 1;
+  writeFocus(p, { ...focus, sends });
 }
 
 export function writeFocus(p: Paths, record: FocusRecord): void {
@@ -114,7 +156,7 @@ export function release(p: Paths, now: number): HeldItem[] {
     writeAtomic(p.history, `${history}${entry}\n`);
   }
   writeAtomic(p.held, "");
-  writeFocus(p, { ...focus, on: false, awaySeen: false });
+  writeFocus(p, { ...focus, on: false, awaySeen: false, tasks: [], sends: {} });
   return items;
 }
 
@@ -206,6 +248,22 @@ function describe(item: HeldItem): string {
   if (item.kind === "note") return `- ${item.text}`;
   const label = item.verdict === "captain" ? `[seq ${item.seq}] ` : "";
   return `- ${label}${item.task}: ${item.summary}`;
+}
+
+/**
+ * The held list for the first mate, with the tasks under test first: he steered
+ * those step by step and has usually told the captain already, so he only adds
+ * what was not said.
+ */
+export function formatHeldForRelease(items: HeldItem[], tasks: string[]): string {
+  const underTest = new Set(tasks);
+  const mine = items.filter((item) => item.kind === "outcome" && underTest.has(item.task));
+  const rest = items.filter((item) => !(item.kind === "outcome" && underTest.has(item.task)));
+  if (mine.length === 0) return formatHeld(rest);
+  const head = "\u6b63\u5728\u6d4b\u7684\u4efb\u52a1";
+  const parts = [head + "（" + [...underTest].join("、") + "）的结果（" + mine.length + " 条，手测时多半已当面说过，只补没说过的）：\n" + mine.map(describe).join("\n")];
+  if (rest.length) parts.push(formatHeld(rest));
+  return parts.join("\n\n");
 }
 
 export function formatHeld(items: HeldItem[]): string {
