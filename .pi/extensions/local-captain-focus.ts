@@ -26,8 +26,10 @@
 // captain comes back from it, focus ends and what it held goes to the first
 // mate in the same run as away mode's own summary, so he hears it all at once.
 //
-// Routine notes that show are session entries rendered for the captain only,
-// never model messages; the first mate reads the store with fm_branch_outcomes.
+// The captain sees none of this machinery: the fm_focus tool row renders
+// empty (its results are written for the first mate), and routine notes that
+// show are session entries rendered for the captain only, never model
+// messages; the first mate reads the store with fm_branch_outcomes.
 //
 // Gate: the home-local, gitignored presence flag config/captain-focus. Without
 // it nothing is installed and upstream behaves exactly as before.
@@ -35,7 +37,7 @@ import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { Text } from "@earendil-works/pi-tui";
+import { Container, Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import {
   decide,
@@ -58,7 +60,10 @@ import {
 
 const NOTE_ENTRY = "fm-local-routine-note";
 const FOCUS_MESSAGE = "fm-local-focus";
-const HIDDEN_MARK = "\u2063";
+const HIDDEN_MARK = String.fromCharCode(0x2063);
+// fm-calm.ts publishes its presentation state on this event; stock export
+// rendering means a session export is being drawn with Pi's own renderers.
+const CALM_PRESENTATION_EVENT = "firstmate:calm-presentation";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const fmHome = process.env.FM_HOME || process.env.FM_ROOT_OVERRIDE || root;
@@ -87,6 +92,11 @@ export default function localCaptainFocus(pi: ExtensionAPI): void {
   const p = paths(stateDir);
   const shown = new Set<number>();
   let timer: ReturnType<typeof setInterval> | undefined;
+  let stockExportRendering = false;
+
+  pi.events?.on?.(CALM_PRESENTATION_EVENT, (data) => {
+    stockExportRendering = (data as { stockExportRendering?: unknown } | undefined)?.stockExportRendering === true;
+  });
 
   (globalThis as Hooks).fmLocalDeliverOutcome = (row) => {
     try {
@@ -132,10 +142,13 @@ export default function localCaptainFocus(pi: ExtensionAPI): void {
     else pi.sendMessage(message, { triggerTurn: false });
   }
 
+  // Only the first mate reads this, so it keeps the count: it tells him there
+  // is still something to say when focus ends.
   function focusReminder(): string | undefined {
     const focus = readFocus(p);
     if (!focus.on) return undefined;
-    return `（本机专注状态）船长从 ${clock(focus.since)} 起在专注：${focus.topic}。监督消息里不是〔立刻〕的由代码挡着，已攒 ${readHeld(p).length} 件。` +
+    return "（本机专注状态）船长从 " + clock(focus.since) + " 起在专注：" + focus.topic +
+      "。监督消息里不是〔立刻〕的由代码挡着，已攒 " + readHeld(p).length + " 件。" +
       "他停下、换话题或问还有什么时，调用 fm_focus off，把返回的内容在一条回复里说完。";
   }
 
@@ -144,10 +157,12 @@ export default function localCaptainFocus(pi: ExtensionAPI): void {
     const focus = readFocus(p);
     const items = release(p, now());
     if (items.length === 0) return;
-    const head = "\u8239\u957f\u4ece\u79bb\u5f00\u6a21\u5f0f\u56de\u6765\u4e86";
-    tellMain(`${head}，专注（${focus.topic}）随之结束。离开前攒着的事如下，和离开期间的结果放在同一条回复里说完；` +
-      "其中带 seq 的如果出现在处理请求里，照常调用 fm_branch_processed，已经说过的只回一句。\n\n" +
-      formatHeld(items), true);
+    tellMain(
+      "船长从离开模式回来了，专注（" + focus.topic + "）随之结束。离开前攒着的事如下，和离开期间的结果放在同一条回复里说完；" +
+        "其中带 seq 的如果出现在处理请求里，照常调用 fm_branch_processed，已经说过的只回一句。\n\n" +
+        formatHeld(items),
+      true,
+    );
   }
 
   function checkIdle(): void {
@@ -156,7 +171,7 @@ export default function localCaptainFocus(pi: ExtensionAPI): void {
     const items = release(p, now());
     if (items.length === 0) return;
     tellMain(
-      `船长 ${Math.round(idleSeconds() / 60)} 分钟没说话，专注（${focus.topic}）已自动结束。攒着的事如下，整理成一条回复，他回来就能一次看完；` +
+      "船长 " + Math.round(idleSeconds() / 60) + " 分钟没说话，专注（" + focus.topic + "）已自动结束。攒着的事如下，整理成一条回复，他回来就能一次看完；" +
         "其中带 seq 的如果之后出现在处理请求里，照常调用 fm_branch_processed，回复只写一句「上面说过了」。\n\n" +
         formatHeld(items),
       true,
@@ -210,8 +225,23 @@ export default function localCaptainFocus(pi: ExtensionAPI): void {
     label: "Captain focus",
     description:
       "Hold supervision messages while the captain focuses on one thing (hand-testing, a design discussion). " +
-      "on: start focus with a short topic. add: hold one item of your own for later. list: show what is held. " +
+      "on: start focus with a short topic. add: hold one item of your own for later. " +
+      "list: show whether focus is on and what is held; use it when the captain asks. " +
       "off: end focus and return everything held, to tell the captain in one reply.",
+    // The results are written for the first mate, not the captain, and focus
+    // shows the captain nothing: the row renders empty. A session export still
+    // shows it, the way fm_watch_arm_pi does in fm-primary-pi-watch.ts.
+    renderShell: "self",
+    renderCall: (_args, theme) =>
+      stockExportRendering ? new Text(theme.fg("toolTitle", theme.bold("fm_focus")), 0, 0) : new Container(),
+    renderResult: (result, _options, theme) => {
+      if (!stockExportRendering) return new Container();
+      const output = result.content
+        .filter((item) => item.type === "text")
+        .map((item) => (item as { text: string }).text)
+        .join("\n");
+      return new Text(theme.fg("toolOutput", output), 0, 0);
+    },
     parameters: Type.Object({
       action: Type.Union([Type.Literal("on"), Type.Literal("off"), Type.Literal("add"), Type.Literal("list")]),
       topic: Type.Optional(Type.String({ description: "For on: what the captain is focused on, a few words" })),
@@ -227,27 +257,28 @@ export default function localCaptainFocus(pi: ExtensionAPI): void {
       const focus = readFocus(p);
       if (action === "on") {
         const t = now();
-        writeFocus(p, { on: true, topic: topic?.trim() || focus.topic || "（未写）", since: focus.on ? focus.since : t, lastCaptainAt: t });
-        return reply(`专注已开：${topic?.trim() || focus.topic}。已攒 ${readHeld(p).length} 件。`);
+        const newTopic = topic?.trim() || focus.topic || "（未写）";
+        writeFocus(p, { on: true, topic: newTopic, since: focus.on ? focus.since : t, lastCaptainAt: t });
+        return reply("专注已开：" + newTopic + "。");
       }
       if (action === "add") {
         if (!text?.trim()) return reply("add 需要 text", true);
         hold(p, { kind: "note", text: text.trim(), at: now() });
-        return reply(`记下了，已攒 ${readHeld(p).length} 件。`);
+        return reply("记下了。");
       }
       if (action === "list") {
-        return reply(`${focus.on ? `专注中：${focus.topic}` : "现在没在专注"}\n\n${formatHeld(readHeld(p))}`);
+        return reply((focus.on ? "专注中：" + focus.topic : "现在没在专注") + "\n\n" + formatHeld(readHeld(p)));
       }
       if (action === "off") {
         const items = release(p, now());
         return reply(
-          `专注已结束。${formatHeld(items)}` +
+          "专注已结束。" + formatHeld(items) +
             (items.length
               ? "\n\n在这条回复里一次告诉船长。带 seq 的如果之后出现在处理请求里，照常调用 fm_branch_processed，回复只写一句「上面说过了」。"
               : ""),
         );
       }
-      return reply(`未知 action：${action}`, true);
+      return reply("未知 action：" + action, true);
     },
   });
 }
