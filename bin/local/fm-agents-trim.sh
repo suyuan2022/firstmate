@@ -157,7 +157,7 @@ REPLACEMENTS = [
         "",
         "Only the 立刻 tier interrupts: 不马上处理会造成损失、或工作停下来等他 (production failure, a destructive, irreversible, or security-sensitive action awaiting approval, an expired credential blocking several workers); say it in one sentence without expanding.",
         "When the captain settles into one thing (he says he will hand-test or discuss a design), call `fm_focus` with `on` and tell him in one short clause that you will hold other messages; while focus is on, the supervision branch's outcomes that are not 立刻 are held by code instead of reaching this conversation, and your own 攒着 items go in with `fm_focus` `add`.",
-        "When he stops, clearly changes topic, or asks what else is pending, call `fm_focus` with `off` and tell him everything it returns in that one reply; he can correct the focus state in a word at any time.",
+        "When he stops, clearly changes topic, or asks what else is pending, call `fm_focus` with `off` and tell him everything it returns in that one reply; he can correct the focus state in a word at any time, and when he asks whether focus is on or what is held, answer from `fm_focus` `list`.",
         "Held items are never dropped: a held outcome that later arrives in a processing request is acknowledged normally, and one already told is answered in one line rather than repeated.",
         "",
     )),

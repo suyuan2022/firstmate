@@ -96,7 +96,7 @@ make_checkout() { # <name> <flag:yes|no>
   cp "$EXT" "$d/.pi/extensions/local-captain-focus.ts"
   cp "$LIB" "$d/.pi/extensions/lib/local-captain-focus-lib.ts"
   printf '{"name":"@earendil-works/pi-tui","type":"module","exports":"./index.js"}\n' > "$d/node_modules/@earendil-works/pi-tui/package.json"
-  printf 'export class Text { constructor(text) { this.text = text; } }\n' > "$d/node_modules/@earendil-works/pi-tui/index.js"
+  printf 'export class Text { constructor(text) { this.text = text; } }\nexport class Container {}\n' > "$d/node_modules/@earendil-works/pi-tui/index.js"
   printf '{"name":"typebox","type":"module","exports":"./index.js"}\n' > "$d/node_modules/typebox/package.json"
   printf 'const id = (...a) => a; export const Type = { Object: id, Union: id, Literal: id, Optional: id, String: id };\n' > "$d/node_modules/typebox/index.js"
   printf '{"name":"@earendil-works/pi-coding-agent","type":"module","exports":"./index.js"}\n' > "$d/node_modules/@earendil-works/pi-coding-agent/package.json"
@@ -112,12 +112,14 @@ test_extension_end_to_end() {
   cat > "$js" <<JS
 const d = process.argv[2];
 const entries = [], messages = [], handlers = {}, tools = {};
+const eventHandlers = {};
 const pi = {
   on: (name, fn) => { (handlers[name] ??= []).push(fn); },
   appendEntry: (type, data) => entries.push({ type, data }),
   sendMessage: (message, options) => messages.push({ message, options }),
   registerTool: (tool) => { tools[tool.name] = tool; },
   registerEntryRenderer: () => {},
+  events: { on: (name, fn) => { (eventHandlers[name] ??= []).push(fn); } },
 };
 const m = await import(\`file://\${d}/.pi/extensions/local-captain-focus.ts\`);
 m.default(pi);
@@ -145,6 +147,25 @@ check("off returns every held item", text.includes("[seq 5]") && text.includes("
 check("after off main gets the held row again", presentable(rows).length === 2);
 check("after off routine news shows again", deliver(row(7, "t1", "routine", "工人开始改了")) === true && entries.length === 2);
 check("broken input never blocks upstream", deliver(null) === false);
+
+// The tool never shows in the captain's window; a session export still shows it.
+const tool = tools.fm_focus;
+const theme = { fg: (_c, s) => s, bold: (s) => s };
+const result = { content: [{ type: "text", text: "x" }] };
+check("tool draws its own row", tool.renderShell === "self");
+check("call row is empty", tool.renderCall({}, theme, {}).constructor.name === "Container");
+check("result row is empty", tool.renderResult(result, {}, theme, {}).constructor.name === "Container");
+for (const fn of eventHandlers["firstmate:calm-presentation"] ?? []) fn({ active: true, stockExportRendering: true });
+check("export shows the call", tool.renderCall({}, theme, {}).text === "fm_focus");
+check("export shows the result", tool.renderResult(result, {}, theme, {}).text === "x");
+for (const fn of eventHandlers["firstmate:calm-presentation"] ?? []) fn({ active: true, stockExportRendering: false });
+check("back to empty after export", tool.renderResult(result, {}, theme, {}).constructor.name === "Container");
+
+// Results carry no counts.
+const onText = (await tool.execute("c7", { action: "on", topic: "t" })).content[0].text;
+const addText = (await tool.execute("c8", { action: "add", text: "y" })).content[0].text;
+check("on and add carry no count", !/\d/.test(onText) && !/\d/.test(addText));
+await tool.execute("c9", { action: "off" });
 
 // Away mode while focused: focus pauses, then ends on return and hands
 // everything to main in one triggered request.
